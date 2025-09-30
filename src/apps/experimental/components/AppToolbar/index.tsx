@@ -17,8 +17,6 @@ interface AppToolbarProps {
 }
 
 const PUBLIC_PATHS = [
-    '/addserver',
-    '/selectserver',
     '/login',
     '/forgotpassword',
     '/forgotpasswordpin'

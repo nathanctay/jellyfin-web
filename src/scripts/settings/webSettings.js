@@ -1,3 +1,4 @@
+/* global __SERVER_URL__ */
 import DefaultConfig from '../../config.json';
 import fetchLocal from '../../utils/fetchLocal.ts';
 
@@ -39,21 +40,31 @@ export function getMultiServer() {
         return Promise.resolve(true);
     }
 
-    return getConfig().then(config => {
-        return !!config.multiserver;
-    }).catch(error => {
-        console.log('cannot get web config:', error);
-        return false;
-    });
+    // If an env-configured server is present, force single-server mode
+    if (typeof __SERVER_URL__ === 'string' && __SERVER_URL__) {
+        return Promise.resolve(false);
+    }
+
+    return getConfig()
+        .then(config => !!config.multiserver)
+        .catch(error => {
+            console.log('cannot get web config:', error);
+            return false;
+        });
 }
 
 export function getServers() {
-    return getConfig().then(config => {
-        return config.servers || [];
-    }).catch(error => {
-        console.log('cannot get web config:', error);
-        return [];
-    });
+    // Prefer env-configured server when provided at build time
+    if (typeof __SERVER_URL__ === 'string' && __SERVER_URL__) {
+        return Promise.resolve([ __SERVER_URL__ ]);
+    }
+
+    return getConfig()
+        .then(config => config.servers || [])
+        .catch(error => {
+            console.log('cannot get web config:', error);
+            return [];
+        });
 }
 
 const baseDefaultTheme = {

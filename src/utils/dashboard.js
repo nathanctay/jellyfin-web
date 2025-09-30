@@ -1,3 +1,4 @@
+/* global __SERVER_URL__ */
 import { appHost } from 'components/apphost';
 import viewContainer from 'components/viewContainer';
 import { AppFeature } from 'constants/appFeature';
@@ -107,8 +108,7 @@ export function logout() {
         queryClient.clear();
         // Reset cached views
         viewContainer.reset();
-        appHost.supports(AppFeature.MultiServer) ?
-            navigate('selectserver') : navigate('login');
+        navigate('login');
     });
 }
 
@@ -190,11 +190,7 @@ export function capabilities(host) {
 }
 
 export function selectServer() {
-    if (window.NativeShell && typeof window.NativeShell.selectServer === 'function') {
-        window.NativeShell.selectServer();
-    } else {
-        navigate('selectserver');
-    }
+    navigate('login');
 }
 
 export function hideLoadingMsg() {

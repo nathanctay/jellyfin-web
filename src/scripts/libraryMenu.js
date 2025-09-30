@@ -1,3 +1,4 @@
+/* global __SERVER_URL__ */
 import escapeHtml from 'escape-html';
 import Headroom from 'headroom.js';
 // NOTE: Used for jsdoc
@@ -349,9 +350,7 @@ function refreshLibraryInfoInDrawer(user) {
         html += globalize.translate('HeaderUser');
         html += '</h3>';
 
-        if (appHost.supports(AppFeature.MultiServer)) {
-            html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder btnSelectServer" data-itemid="selectserver" href="#"><span class="material-icons navMenuOptionIcon storage" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('SelectServer')}</span></a>`;
-        }
+        // Hide Select Server button when a single server is configured or when MultiServer is unsupported
 
         html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder btnSettings" data-itemid="settings" href="#"><span class="material-icons navMenuOptionIcon settings" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('Settings')}</span></a>`;
         html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder btnLogout" data-itemid="logout" href="#"><span class="material-icons navMenuOptionIcon exit_to_app" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('ButtonSignOut')}</span></a>`;
@@ -365,11 +364,6 @@ function refreshLibraryInfoInDrawer(user) {
 
     // add buttons to navigation drawer
     navDrawerScrollContainer.innerHTML = html;
-
-    const btnSelectServer = navDrawerScrollContainer.querySelector('.btnSelectServer');
-    if (btnSelectServer) {
-        btnSelectServer.addEventListener('click', onSelectServerClick);
-    }
 
     const btnSettings = navDrawerScrollContainer.querySelector('.btnSettings');
     if (btnSettings) {

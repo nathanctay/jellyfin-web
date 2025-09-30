@@ -1,3 +1,4 @@
+/* global __SERVER_URL__ */
 import DOMPurify from 'dompurify';
 import markdownIt from 'markdown-it';
 
@@ -258,17 +259,12 @@ export default function (view, params) {
         view.querySelector('#txtManualName').value = '';
         showManualForm(view, true);
     });
-    view.querySelector('.btnSelectServer').addEventListener('click', function () {
-        Dashboard.selectServer();
-    });
 
     view.addEventListener('viewshow', function () {
         loading.show();
         libraryMenu.setTransparentMenu(true);
 
-        if (!appHost.supports(AppFeature.MultiServer)) {
-            view.querySelector('.btnSelectServer').classList.add('hide');
-        }
+        // Hide Change Server when single server is configured or multi-server unsupported
 
         const apiClient = getApiClient();
 

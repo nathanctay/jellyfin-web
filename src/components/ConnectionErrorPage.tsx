@@ -82,7 +82,7 @@ const ConnectionErrorPage: FC<ConnectionErrorPageProps> = ({
                 {appHost.supports(AppFeature.MultiServer) && (
                     <LinkButton
                         className='raised'
-                        href='/selectserver'
+                        href='/login'
                     >
                         {globalize.translate('ButtonChangeServer')}
                     </LinkButton>

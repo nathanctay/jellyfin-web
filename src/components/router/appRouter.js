@@ -13,11 +13,10 @@ import { queryClient } from 'utils/query/queryClient';
 import { history } from 'RootAppRouter';
 
 /** Pages of "no return" (when "Go back" should behave differently, probably quitting the application). */
-const START_PAGE_PATHS = ['/home', '/login', '/selectserver'];
+const START_PAGE_PATHS = ['/home', '/login'];
 
 /** Pages that do not require a user to be logged in to view. */
 const PUBLIC_PATHS = [
-    '/addserver',
     '/selectserver',
     '/login',
     '/forgotpassword',
@@ -473,7 +472,7 @@ class AppRouter {
     }
 
     showSelectServer() {
-        return this.show('selectserver');
+        return this.show('login');
     }
 
     showSettings() {
