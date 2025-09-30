@@ -1,5 +1,5 @@
-<h1 align="center">Jellyfin Web</h1>
-<h3 align="center">Part of the <a href="https://jellyfin.org">Jellyfin Project</a></h3>
+<h1 align="center">Nathanflix</h1>
+<h3 align="center">Forked from the <a href="https://jellyfin.org">Jellyfin Project</a></h3>
 
 ---
 
