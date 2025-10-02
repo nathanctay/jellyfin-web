@@ -685,7 +685,7 @@ let navDrawerInstance;
 let mainDrawerButton;
 let headerHomeButton;
 let currentDrawerType;
-let documentTitle = 'Jellyfin';
+let documentTitle = 'NathanFlix';
 let pageTitleElement;
 let headerBackButton;
 let headerUserButton;
@@ -722,7 +722,8 @@ const fetchServerName = (_apiClient) => {
     _apiClient
         ?.getPublicSystemInfo()
         .then(({ ServerName }) => {
-            documentTitle = ServerName || documentTitle;
+            // documentTitle = ServerName || documentTitle;
+            documentTitle = documentTitle;
             document.title = documentTitle;
         })
         .catch(err => {
