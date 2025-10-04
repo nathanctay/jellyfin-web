@@ -29,7 +29,13 @@
       "color": "#0c2450"
     }
   ],
-  "menuLinks": [],
+  "menuLinks": [
+    {
+      "name": "Request Movies/Shows",
+      "icon": "cloud_download",
+      "url": "https://nl5167.dediseedbox.com:16875/"
+  }
+  ],
   "servers": [],
   "plugins": [
     "playAccessValidation/plugin",
