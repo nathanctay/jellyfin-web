@@ -3,6 +3,8 @@ import loading from '../components/loading/loading';
 import focusManager from '../components/focusManager';
 import homeSections from '../components/homesections/homesections';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
+import { renderComponent } from 'utils/reactUtils';
+import HomeCarousel from '../components/homeCarousel/HomeCarousel';
 
 import '../elements/emby-itemscontainer/emby-itemscontainer';
 
@@ -12,9 +14,15 @@ class HomeTab {
         this.params = params;
         this.apiClient = ServerConnections.currentApiClient();
         this.sectionsContainer = view.querySelector('.sections');
+        this.carouselContainer = view.querySelector('.homeCarouselContainer');
+        this.destroyCarousel = null;
         view.querySelector('.sections').addEventListener('settingschange', onHomeScreenSettingsChanged.bind(this));
     }
     onResume(options) {
+        if (!this.destroyCarousel && this.carouselContainer) {
+            this.destroyCarousel = renderComponent(HomeCarousel, {}, this.carouselContainer);
+        }
+
         if (this.sectionsRendered) {
             const sectionsContainer = this.sectionsContainer;
 
@@ -50,11 +58,16 @@ class HomeTab {
         }
     }
     destroy() {
+        if (this.destroyCarousel) {
+            this.destroyCarousel();
+            this.destroyCarousel = null;
+        }
         this.view = null;
         this.params = null;
         this.apiClient = null;
         this.destroyHomeSections();
         this.sectionsContainer = null;
+        this.carouselContainer = null;
     }
     destroyHomeSections() {
         const sectionsContainer = this.sectionsContainer;

@@ -3,7 +3,10 @@ import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base
 import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
 import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
+import { getItemsApi } from '@jellyfin/sdk/lib/utils/api/items-api';
 import type SwiperType from 'swiper';
 // eslint-disable-next-line import/no-unresolved
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -26,6 +29,13 @@ import CarouselProgressBar from './CarouselProgressBar';
 import './homeCarousel.scss';
 
 const SLIDE_DURATION = 7000;
+const FEATURED_TAG = 'Featured';
+const MAX_ITEMS = 10;
+
+interface CarouselItem {
+    item: BaseItemDto;
+    isFeatured: boolean;
+}
 
 function getTitle(item: BaseItemDto): string {
     if (item.Type === BaseItemKind.Episode && item.SeriesName) {
@@ -59,9 +69,10 @@ function getBackdropUrl(apiClient: ApiClient, item: BaseItemDto): string | undef
 interface CarouselSlideContentProps {
     item: BaseItemDto;
     apiClient: ApiClient;
+    isFeatured: boolean;
 }
 
-const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient }) => {
+const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient, isFeatured }) => {
     const backdropUrl = useMemo(
         () => getBackdropUrl(apiClient, item),
         [apiClient, item]
@@ -88,8 +99,8 @@ const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient }
                 }}
             />
             <div className='homeCarousel-content'>
-                <span className='homeCarousel-label'>
-                    {globalize.translate('HeaderLatestMedia')}
+                <span className={`homeCarousel-label${isFeatured ? ' homeCarousel-label--featured' : ''}`}>
+                    {isFeatured ? globalize.translate('Featured') || 'Featured' : globalize.translate('HeaderLatestMedia')}
                 </span>
                 <h2 className='homeCarousel-title'>
                     {title}
@@ -120,6 +131,11 @@ const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient }
                         </span>
                     )}
                 </div>
+                {item.Overview && (
+                    <p className='homeCarousel-overview'>
+                        {item.Overview}
+                    </p>
+                )}
                 <div className='homeCarousel-buttons'>
                     <button
                         type='button'
@@ -145,7 +161,7 @@ const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient }
 
 const HomeCarousel: FC = () => {
     const { api, user, __legacyApiClient__: apiClient } = useApi();
-    const [items, setItems] = useState<BaseItemDto[]>([]);
+    const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const swiperRef = useRef<SwiperType | null>(null);
@@ -153,27 +169,72 @@ const HomeCarousel: FC = () => {
     useEffect(() => {
         if (!api || !user?.Id) return;
 
-        getUserLibraryApi(api).getLatestMedia({
+        const imageFields = [
+            ItemFields.PrimaryImageAspectRatio,
+            ItemFields.Overview
+        ];
+        const imageTypes = [
+            ImageType.Primary,
+            ImageType.Backdrop,
+            ImageType.Thumb
+        ];
+
+        const hasBackdrop = (item: BaseItemDto) =>
+            item.BackdropImageTags?.length
+            || item.ParentBackdropImageTags?.length;
+
+        // Fetch featured items (tagged "Featured") and latest media in parallel
+        const featuredPromise = getItemsApi(api).getItems({
             userId: user.Id,
-            fields: [
-                ItemFields.PrimaryImageAspectRatio,
-                ItemFields.Overview
-            ],
+            tags: [FEATURED_TAG],
+            fields: imageFields,
             imageTypeLimit: 1,
-            enableImageTypes: [
-                ImageType.Primary,
-                ImageType.Backdrop,
-                ImageType.Thumb
-            ],
+            enableImageTypes: imageTypes,
+            sortBy: [ItemSortBy.Random],
+            sortOrder: [SortOrder.Descending],
+            recursive: true,
+            limit: MAX_ITEMS
+        }).then(({ data }) =>
+            (data.Items ?? []).filter(hasBackdrop)
+        ).catch(err => {
+            console.error('[HomeCarousel] Failed to fetch featured items', err);
+            return [] as BaseItemDto[];
+        });
+
+        const latestPromise = getUserLibraryApi(api).getLatestMedia({
+            userId: user.Id,
+            fields: imageFields,
+            imageTypeLimit: 1,
+            enableImageTypes: imageTypes,
             limit: 12
-        }).then(({ data }) => {
-            const itemsWithBackdrops = (data ?? []).filter(item =>
-                item.BackdropImageTags?.length
-                || item.ParentBackdropImageTags?.length
-            );
-            setItems(itemsWithBackdrops.slice(0, 10));
-        }).catch(err => {
+        }).then(({ data }) =>
+            (data ?? []).filter(hasBackdrop)
+        ).catch(err => {
             console.error('[HomeCarousel] Failed to fetch latest media', err);
+            return [] as BaseItemDto[];
+        });
+
+        void Promise.all([featuredPromise, latestPromise]).then(([featured, latest]) => {
+            const merged: CarouselItem[] = [];
+            const usedIds = new Set<string>();
+
+            // Featured items go first
+            for (const item of featured) {
+                if (item.Id && !usedIds.has(item.Id) && merged.length < MAX_ITEMS) {
+                    usedIds.add(item.Id);
+                    merged.push({ item, isFeatured: true });
+                }
+            }
+
+            // Fill remaining slots with latest media (skip duplicates)
+            for (const item of latest) {
+                if (item.Id && !usedIds.has(item.Id) && merged.length < MAX_ITEMS) {
+                    usedIds.add(item.Id);
+                    merged.push({ item, isFeatured: false });
+                }
+            }
+
+            setCarouselItems(merged);
         });
     }, [api, user?.Id]);
 
@@ -214,7 +275,7 @@ const HomeCarousel: FC = () => {
 
     const swiperModules = useMemo(() => [EffectFade, A11y, Keyboard], []);
 
-    if (!items.length || !apiClient) return null;
+    if (!carouselItems.length || !apiClient) return null;
 
     return (
         <div
@@ -222,21 +283,11 @@ const HomeCarousel: FC = () => {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            {items.length > 1 && (
-                <CarouselProgressBar
-                    pages={items.length}
-                    currentIndex={currentIndex}
-                    duration={SLIDE_DURATION}
-                    paused={isPaused}
-                    onAnimationEnd={handleAnimationEnd}
-                    onProgressClicked={handleProgressClicked}
-                />
-            )}
             <Swiper
                 modules={swiperModules}
                 effect='fade'
                 fadeEffect={{ crossFade: true }}
-                loop={items.length > 1}
+                loop={carouselItems.length > 1}
                 keyboard={{ enabled: true }}
                 allowTouchMove
                 onSwiper={handleSwiper}
@@ -245,15 +296,26 @@ const HomeCarousel: FC = () => {
                 onTouchEnd={handleTouchEnd}
                 className='homeCarousel-swiper'
             >
-                {items.map(item => (
+                {carouselItems.map(({ item, isFeatured }) => (
                     <SwiperSlide key={item.Id}>
                         <CarouselSlideContent
                             item={item}
                             apiClient={apiClient}
+                            isFeatured={isFeatured}
                         />
                     </SwiperSlide>
                 ))}
             </Swiper>
+            {carouselItems.length > 1 && (
+                <CarouselProgressBar
+                    pages={carouselItems.length}
+                    currentIndex={currentIndex}
+                    duration={SLIDE_DURATION}
+                    paused={isPaused}
+                    onAnimationEnd={handleAnimationEnd}
+                    onProgressClicked={handleProgressClicked}
+                />
+            )}
         </div>
     );
 };
