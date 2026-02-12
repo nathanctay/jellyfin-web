@@ -30,11 +30,26 @@ import './homeCarousel.scss';
 
 const SLIDE_DURATION = 7000;
 const FEATURED_TAG = 'Featured';
+const CAROUSEL_LABEL_PREFIX = 'carousel:';
 const MAX_ITEMS = 10;
 
 interface CarouselItem {
     item: BaseItemDto;
     isFeatured: boolean;
+    customLabel?: string;
+}
+
+/**
+ * Extracts a custom carousel label from item tags.
+ * Tags with the prefix "carousel:" are treated as custom labels.
+ * e.g. a tag of "carousel:Now Streaming" yields "Now Streaming".
+ */
+function getCustomLabel(item: BaseItemDto): string | undefined {
+    const tag = item.Tags?.find(t => t.startsWith(CAROUSEL_LABEL_PREFIX));
+    if (tag) {
+        return tag.slice(CAROUSEL_LABEL_PREFIX.length).trim() || undefined;
+    }
+    return undefined;
 }
 
 function getTitle(item: BaseItemDto): string {
@@ -70,9 +85,10 @@ interface CarouselSlideContentProps {
     item: BaseItemDto;
     apiClient: ApiClient;
     isFeatured: boolean;
+    customLabel?: string;
 }
 
-const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient, isFeatured }) => {
+const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient, isFeatured, customLabel }) => {
     const backdropUrl = useMemo(
         () => getBackdropUrl(apiClient, item),
         [apiClient, item]
@@ -99,8 +115,8 @@ const CarouselSlideContent: FC<CarouselSlideContentProps> = ({ item, apiClient, 
                 }}
             />
             <div className='homeCarousel-content'>
-                <span className={`homeCarousel-label${isFeatured ? ' homeCarousel-label--featured' : ''}`}>
-                    {isFeatured ? globalize.translate('Featured') || 'Featured' : globalize.translate('HeaderLatestMedia')}
+                <span className={`homeCarousel-label${isFeatured || customLabel ? ' homeCarousel-label--featured' : ''}`}>
+                    {customLabel || (isFeatured ? globalize.translate('Featured') || 'Featured' : globalize.translate('HeaderLatestMedia'))}
                 </span>
                 <h2 className='homeCarousel-title'>
                     {title}
@@ -171,7 +187,8 @@ const HomeCarousel: FC = () => {
 
         const imageFields = [
             ItemFields.PrimaryImageAspectRatio,
-            ItemFields.Overview
+            ItemFields.Overview,
+            ItemFields.Tags
         ];
         const imageTypes = [
             ImageType.Primary,
@@ -222,7 +239,7 @@ const HomeCarousel: FC = () => {
             for (const item of featured) {
                 if (item.Id && !usedIds.has(item.Id) && merged.length < MAX_ITEMS) {
                     usedIds.add(item.Id);
-                    merged.push({ item, isFeatured: true });
+                    merged.push({ item, isFeatured: true, customLabel: getCustomLabel(item) });
                 }
             }
 
@@ -230,7 +247,7 @@ const HomeCarousel: FC = () => {
             for (const item of latest) {
                 if (item.Id && !usedIds.has(item.Id) && merged.length < MAX_ITEMS) {
                     usedIds.add(item.Id);
-                    merged.push({ item, isFeatured: false });
+                    merged.push({ item, isFeatured: false, customLabel: getCustomLabel(item) });
                 }
             }
 
@@ -296,12 +313,13 @@ const HomeCarousel: FC = () => {
                 onTouchEnd={handleTouchEnd}
                 className='homeCarousel-swiper'
             >
-                {carouselItems.map(({ item, isFeatured }) => (
+                {carouselItems.map(({ item, isFeatured, customLabel }) => (
                     <SwiperSlide key={item.Id}>
                         <CarouselSlideContent
                             item={item}
                             apiClient={apiClient}
                             isFeatured={isFeatured}
+                            customLabel={customLabel}
                         />
                     </SwiperSlide>
                 ))}
