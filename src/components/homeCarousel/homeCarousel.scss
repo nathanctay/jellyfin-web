@@ -1,0 +1,307 @@
+.homeCarousel {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    margin-bottom: 1em;
+    user-select: none;
+}
+
+.homeCarousel-swiper {
+    width: 100%;
+}
+
+.homeCarousel-slide {
+    position: relative;
+    width: 100%;
+    height: 55vh;
+    min-height: 400px;
+    display: flex;
+    align-items: flex-end;
+}
+
+@media (max-width: 48em) {
+    .homeCarousel-slide {
+        height: auto;
+        min-height: 320px;
+        aspect-ratio: 16 / 9;
+    }
+}
+
+.homeCarousel-backdrop {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    z-index: 1;
+}
+
+@media (min-width: 48em) {
+    .homeCarousel-backdrop {
+        width: 75%;
+        left: auto;
+        right: 0;
+        background-position: right center;
+        mask-image:
+            linear-gradient(
+                to right,
+                hsla(0, 0%, 0%, 0) 0%,
+                hsla(0, 0%, 0%, 0.18) 5.6%,
+                hsla(0, 0%, 0%, 0.34) 9.9%,
+                hsla(0, 0%, 0%, 0.48) 13.1%,
+                hsla(0, 0%, 0%, 0.59) 15.7%,
+                hsla(0, 0%, 0%, 0.69) 17.9%,
+                hsla(0, 0%, 0%, 0.77) 20.2%,
+                hsla(0, 0%, 0%, 0.84) 22.9%,
+                hsla(0, 0%, 0%, 0.89) 26.3%,
+                hsla(0, 0%, 0%, 0.93) 30.8%,
+                hsla(0, 0%, 0%, 0.96) 36.7%,
+                hsla(0, 0%, 0%, 0.98) 44.4%,
+                hsla(0, 0%, 0%, 0.99) 54.3%,
+                hsla(0, 0%, 0%, 1) 66.6%,
+                hsla(0, 0%, 0%, 1) 100%
+            ),
+            linear-gradient(
+                to top,
+                hsla(0, 0%, 0%, 0) 0%,
+                hsla(0, 0%, 0%, 0.18) 5.6%,
+                hsla(0, 0%, 0%, 0.34) 9.9%,
+                hsla(0, 0%, 0%, 0.48) 13.1%,
+                hsla(0, 0%, 0%, 0.59) 15.7%,
+                hsla(0, 0%, 0%, 0.69) 17.9%,
+                hsla(0, 0%, 0%, 0.77) 20.2%,
+                hsla(0, 0%, 0%, 0.84) 22.9%,
+                hsla(0, 0%, 0%, 0.89) 26.3%,
+                hsla(0, 0%, 0%, 0.93) 30.8%,
+                hsla(0, 0%, 0%, 0.96) 36.7%,
+                hsla(0, 0%, 0%, 0.98) 44.4%,
+                hsla(0, 0%, 0%, 0.99) 54.3%,
+                hsla(0, 0%, 0%, 1) 66.6%,
+                hsla(0, 0%, 0%, 1) 100%
+            );
+        mask-composite: intersect;
+    }
+}
+
+@media (max-width: 47.99em) {
+    .homeCarousel-backdrop {
+        mask-image: linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0.75) 0%,
+            rgba(0, 0, 0, 0) 100%
+        );
+    }
+}
+
+.homeCarousel-content {
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+    padding: 1.5em 2em;
+    width: 100%;
+}
+
+@media (min-width: 48em) {
+    .homeCarousel-content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 2em 3em;
+        max-width: 55%;
+    }
+}
+
+.homeCarousel-label {
+    display: block;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.4em;
+}
+
+.homeCarousel-title {
+    font-size: 2.4em;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.15;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 48em) {
+    .homeCarousel-title {
+        font-size: 1.6em;
+    }
+}
+
+.homeCarousel-subtitle {
+    font-size: 1.1em;
+    font-weight: 400;
+    margin: 0.15em 0 0;
+    color: rgba(255, 255, 255, 0.85);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.homeCarousel-tagline {
+    font-size: 0.95em;
+    font-style: italic;
+    margin: 0.5em 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.homeCarousel-mediaInfo {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    margin-top: 0.8em;
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.homeCarousel-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+}
+
+.homeCarousel-ratingIcon {
+    font-size: 1em !important;
+    color: #f5c518;
+}
+
+.homeCarousel-buttons {
+    display: flex;
+    gap: 0.8em;
+    margin-top: 1.2em;
+    flex-wrap: wrap;
+}
+
+.homeCarousel-playBtn,
+.homeCarousel-detailsBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    padding: 0.55em 1.6em;
+    border-radius: 0.3em;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.2s, opacity 0.2s;
+    border: none;
+    min-width: 10em;
+}
+
+.homeCarousel-playBtn {
+    background: rgba(255, 255, 255, 0.95);
+    color: #000;
+}
+
+.homeCarousel-playBtn:hover {
+    background: #fff;
+    color: #000;
+    text-decoration: none;
+}
+
+.homeCarousel-playBtn .material-icons {
+    font-size: 1.3em;
+}
+
+.homeCarousel-detailsBtn {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.homeCarousel-detailsBtn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Progress Bar */
+.carouselProgressBar {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    padding: 0 0.5em;
+    margin: 0.6em 0;
+    overflow: hidden;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.carouselProgressBar-item {
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    cursor: pointer;
+}
+
+.carouselProgressBar-bar {
+    height: 2.5px;
+    flex-grow: 1;
+    border-radius: 4px;
+    margin: 0 3px;
+    display: block;
+    background-image: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(255, 255, 255, 0.9) 50%,
+        rgba(255, 255, 255, 0.25) 50.001%,
+        rgba(255, 255, 255, 0.25) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 200%;
+    background-position: 100% 50%;
+    animation-timing-function: linear;
+    animation-delay: 0s;
+    animation-fill-mode: forwards;
+    transition: height 0.25s;
+}
+
+.carouselProgressBar-item:hover .carouselProgressBar-bar {
+    height: 6px;
+}
+
+.carouselProgressBar-bar--active {
+    animation-name: carouselProgressLoader;
+}
+
+.carouselProgressBar-bar--passed {
+    background-position: 0 0;
+}
+
+.carouselProgressBar-bar--paused {
+    animation-play-state: paused;
+}
+
+@keyframes carouselProgressLoader {
+    0% {
+        background-position: 100% 0;
+    }
+
+    100% {
+        background-position: 0 0;
+    }
+}
