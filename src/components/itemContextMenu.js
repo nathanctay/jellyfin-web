@@ -260,6 +260,15 @@ export async function getCommands(options) {
         });
     }
 
+    if (canEdit && item.Type !== 'Timer' && item.Type !== 'SeriesTimer') {
+        const isFeatured = item.Tags?.includes('Featured');
+        commands.push({
+            name: isFeatured ? 'Remove from Featured' : 'Add to Featured',
+            id: 'togglefeatured',
+            icon: isFeatured ? 'star' : 'star_outline'
+        });
+    }
+
     if (itemHelper.canEditSubtitles(user, item) && options.editSubtitles !== false) {
         commands.push({
             name: globalize.translate('EditSubtitles'),
@@ -545,6 +554,23 @@ function executeCommand(item, id, options) {
                         itemId: itemId,
                         serverId: serverId
                     }).then(getResolveFunction(resolve, id, true), getResolveFunction(resolve, id));
+                });
+                break;
+            case 'togglefeatured':
+                apiClient.getItem(apiClient.getCurrentUserId(), itemId).then(function (fullItem) {
+                    const tags = fullItem.Tags || [];
+                    const isFeatured = tags.includes('Featured');
+
+                    if (isFeatured) {
+                        fullItem.Tags = tags.filter(t => t !== 'Featured');
+                    } else {
+                        fullItem.Tags = [...tags, 'Featured'];
+                    }
+
+                    apiClient.updateItem(fullItem).then(function () {
+                        toast(isFeatured ? 'Removed from Featured' : 'Added to Featured');
+                        getResolveFunction(resolve, id, true)();
+                    });
                 });
                 break;
             case 'identify':
