@@ -13,6 +13,7 @@ import { loadLiveTV } from './sections/liveTv';
 import { loadNextUp } from './sections/nextUp';
 import { loadRecentlyAdded } from './sections/recentlyAdded';
 import { loadResume } from './sections/resume';
+import { loadGenreRows } from './sections/genreRows';
 
 import 'elements/emby-button/paper-icon-button-light';
 import 'elements/emby-itemscontainer/emby-itemscontainer';
@@ -76,6 +77,9 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 for (let i = 0; i < sections.length; i++) {
                     promises.push(loadSection(elem, apiClient, user, userSettings, userViews, sections, i));
                 }
+
+                // Append genre rows after the standard sections
+                promises.push(loadGenreRows(elem, apiClient, user, userViews, { enableOverflow: enableScrollX() }));
 
                 return Promise.all(promises)
                 // Timeout for polyfilled CustomElements (webOS 1.2)

@@ -37,6 +37,28 @@ Jellyfin Web is the frontend used for most of the clients available for end user
 <img src="https://translate.jellyfin.org/widgets/jellyfin/-/jellyfin-web/multi-auto.svg" alt="Detailed Translation Status"/>
 </a>
 
+## Nathanflix Customizations
+
+This fork adds several home page enhancements on top of upstream Jellyfin Web.
+
+- **Home hero carousel**
+  - Shows recent additions with a large backdrop, metadata, and play button
+  - **Feature items** in the carousel by adding the tag `Featured` to a movie/show
+  - **Custom carousel label** per item via tags like `carousel:Now Streaming`
+  - Admins can toggle the `Featured` tag from the item detail 3-dot menu using the new **“Add to Featured / Remove from Featured”** action
+
+- **Featured rows on Home**
+  - Any item tagged `FeaturedRow` is eligible for curated rows on the home page
+  - Items are grouped into rows by tags of the form `row:Some Label`
+    - Example: tags `FeaturedRow` and `row:Staff Picks` put the item into a **“Staff Picks”** row
+  - Items with `FeaturedRow` but no `row:` tag are grouped into a default **“Featured”** row
+  - Up to 6 featured rows are shown at once; when more exist, a date-based rotating window determines which appear each day
+
+- **Automatic genre rows on Home**
+  - In addition to featured rows, the home page shows horizontal rows built from real **genres**
+  - Uses the Jellyfin genres API to pick up to 4 genres and, for each, shows a randomized slice of movies/shows in that genre
+  - The genre list is stable for a given day but rotates over time to keep the home page feeling fresh
+
 ## Build Process
 
 ### Dependencies
