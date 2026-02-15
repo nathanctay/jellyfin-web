@@ -1324,10 +1324,18 @@ function renderSeriesAirTime(page, item) {
     }
 }
 
+/** Tags used only for carousel/row curation; hide from detail view. */
+const HIDDEN_TAGS = ['Featured', 'FeaturedRow'];
+function isHiddenTag(tag) {
+    if (HIDDEN_TAGS.includes(tag)) return true;
+    if (tag.startsWith('row:') || tag.startsWith('carousel:')) return true;
+    return false;
+}
+
 function renderTags(page, item) {
     const itemTags = page.querySelector('.itemTags');
     const tagElements = [];
-    let tags = item.Tags || [];
+    let tags = (item.Tags || []).filter(t => !isHiddenTag(t));
 
     if (item.Type === 'Program') {
         tags = [];
