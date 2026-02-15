@@ -243,6 +243,15 @@ export async function getCommands(options) {
         });
     }
 
+    if (canEdit && item.Type !== 'Timer' && item.Type !== 'SeriesTimer') {
+        const isFeatured = item.Tags && item.Tags.includes('Featured');
+        commands.push({
+            name: isFeatured ? globalize.translate('RemoveFromFeatured') : globalize.translate('AddToFeatured'),
+            id: 'togglefeatured',
+            icon: 'star'
+        });
+    }
+
     if (itemHelper.canEditImages(user, item) && options.editImages !== false) {
         commands.push({
             name: globalize.translate('EditImages'),
@@ -504,6 +513,23 @@ function executeCommand(item, id, options) {
             case 'edit':
                 editItem(apiClient, item).then(getResolveFunction(resolve, id, true), getResolveFunction(resolve, id));
                 break;
+            case 'togglefeatured': {
+                apiClient.getItem(options.user.Id, item.Id).then((fullItem) => {
+                    const tags = fullItem.Tags ? [...fullItem.Tags] : [];
+                    const idx = tags.indexOf('Featured');
+                    if (idx >= 0) {
+                        tags.splice(idx, 1);
+                    } else {
+                        tags.push('Featured');
+                    }
+                    fullItem.Tags = tags;
+                    apiClient.updateItem(fullItem).then(() => {
+                        toast(tags.includes('Featured') ? globalize.translate('AddedToFeatured') : globalize.translate('RemovedFromFeatured'));
+                        getResolveFunction(resolve, id, true)();
+                    }, getResolveFunction(resolve, id));
+                }, getResolveFunction(resolve, id));
+                break;
+            }
             case 'editplaylist':
                 import('./playlisteditor/playlisteditor').then(({ default: PlaylistEditor }) => {
                     const playlistEditor = new PlaylistEditor();

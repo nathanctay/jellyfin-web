@@ -37,6 +37,14 @@ Jellyfin Web is the frontend used for most of the clients available for end user
 <img src="https://translate.jellyfin.org/widgets/jellyfin/-/jellyfin-web/multi-auto.svg" alt="Detailed Translation Status"/>
 </a>
 
+## Nathanflix Customizations
+
+This fork adds a few home-screen features:
+
+- **Home hero carousel** – A carousel at the top of the home tab that cycles through featured and recently added movies/series (fade, ~7s, progress bar below). Use the **Featured** tag on items to show them first; add a tag like **carousel:Now Streaming** to show a custom label on that slide instead of "Featured" or "Recently Added Media". Admins can use the item’s 3-dot menu → **Add to Featured** / **Remove from Featured** to toggle the tag.
+- **Featured rows** – Tag items with **FeaturedRow** to build curated horizontal rows. Use **row:Staff Picks** (or any **row:Label**) to set the row title; items without a **row:** tag go into a row titled "Featured". Up to 6 featured rows, 16 items per row.
+- **Genre rows** – Automatic horizontal rows by genre (movies/series), with a small random set of genres and items per row.
+
 ## Build Process
 
 ### Dependencies

@@ -3,7 +3,9 @@ import loading from '../components/loading/loading';
 import focusManager from '../components/focusManager';
 import homeSections from '../components/homesections/homesections';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
+import { renderComponent } from 'utils/reactUtils';
 
+import HomeCarousel from '../components/homeCarousel/HomeCarousel';
 import '../elements/emby-itemscontainer/emby-itemscontainer';
 
 class HomeTab {
@@ -12,6 +14,11 @@ class HomeTab {
         this.params = params;
         this.apiClient = ServerConnections.currentApiClient();
         this.sectionsContainer = view.querySelector('.sections');
+        this.carouselMount = view.querySelector('.homeCarouselMount');
+        this.carouselUnmount = null;
+        if (this.carouselMount) {
+            this.carouselUnmount = renderComponent(HomeCarousel, {}, this.carouselMount);
+        }
         view.querySelector('.sections').addEventListener('settingschange', onHomeScreenSettingsChanged.bind(this));
     }
     onResume(options) {
@@ -50,6 +57,11 @@ class HomeTab {
         }
     }
     destroy() {
+        if (this.carouselUnmount) {
+            this.carouselUnmount();
+            this.carouselUnmount = null;
+        }
+        this.carouselMount = null;
         this.view = null;
         this.params = null;
         this.apiClient = null;

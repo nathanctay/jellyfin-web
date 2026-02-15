@@ -7,6 +7,7 @@ import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
 
 import { loadRecordings } from './sections/activeRecordings';
+import { loadGenreRows } from './sections/genreRows';
 import { loadLibraryButtons } from './sections/libraryButtons';
 import { loadLibraryTiles } from './sections/libraryTiles';
 import { loadLiveTV } from './sections/liveTv';
@@ -76,6 +77,7 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 for (let i = 0; i < sections.length; i++) {
                     promises.push(loadSection(elem, apiClient, user, userSettings, userViews, sections, i));
                 }
+                promises.push(loadGenreRows(elem, apiClient, user, userViews, { enableOverflow: enableScrollX() }));
 
                 return Promise.all(promises)
                 // Timeout for polyfilled CustomElements (webOS 1.2)
