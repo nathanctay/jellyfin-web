@@ -79,9 +79,6 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 }
                 promises.push(loadGenreRows(elem, apiClient, user, userViews, { enableOverflow: enableScrollX() }));
 
-                // Append genre rows after the standard sections
-                promises.push(loadGenreRows(elem, apiClient, user, userViews, { enableOverflow: enableScrollX() }));
-
                 return Promise.all(promises)
                 // Timeout for polyfilled CustomElements (webOS 1.2)
                     .then(() => new Promise((resolve) => setTimeout(resolve, 0)))
