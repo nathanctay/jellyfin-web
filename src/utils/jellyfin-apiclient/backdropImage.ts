@@ -14,6 +14,18 @@ export interface ScaleImageOptions {
 }
 
 /**
+ * Picks a backdrop index when multiple are available.
+ * @param count Number of backdrop images.
+ * @param randomOrPreferred If true, random index; if a number, use that index (clamped); otherwise 0.
+ */
+function getBackdropIndex(count: number, randomOrPreferred: boolean | number): number {
+    if (count <= 0) return 0;
+    if (randomOrPreferred === true) return randomInt(0, count - 1);
+    if (typeof randomOrPreferred === 'number') return Math.min(Math.max(0, randomOrPreferred), count - 1);
+    return 0;
+}
+
+/**
  * Returns the url of the first or a random backdrop image of an item.
  * If the item has no backdrop image, the url of the first or a random backdrop image of the parent item is returned.
  * Falls back to the primary image (cover) of the item, if neither the item nor it's parent have at least one backdrop image.
@@ -21,12 +33,12 @@ export interface ScaleImageOptions {
  * @param apiClient The ApiClient to generate the url.
  * @param item The item for which the backdrop image is requested.
  * @param options Optional; allows to scale the backdrop image.
- * @param random If set to true and the item has more than one backdrop, a random image is returned.
- * @returns The url of the first or a random backdrop image of the provided item.
+ * @param randomOrPreferred If true, a random backdrop is used when multiple exist. If a number (e.g. 1), that index is preferred (clamped). Use 1 to prefer the second image when multiple backdrops exist (often the wider one).
+ * @returns The url of the chosen backdrop image of the provided item.
  */
-export const getItemBackdropImageUrl = (apiClient: ApiClient, item: BaseItemDto, options: ScaleImageOptions = {}, random = false): string | undefined => {
+export const getItemBackdropImageUrl = (apiClient: ApiClient, item: BaseItemDto, options: ScaleImageOptions = {}, randomOrPreferred: boolean | number = false): string | undefined => {
     if (item.Id && item.BackdropImageTags?.length) {
-        const backdropImgIndex = random ? randomInt(0, item.BackdropImageTags.length - 1) : 0;
+        const backdropImgIndex = getBackdropIndex(item.BackdropImageTags.length, randomOrPreferred);
         return apiClient.getScaledImageUrl(item.Id, {
             type: ImageType.Backdrop,
             index: backdropImgIndex,
@@ -34,7 +46,7 @@ export const getItemBackdropImageUrl = (apiClient: ApiClient, item: BaseItemDto,
             ...options
         });
     } else if (item.ParentBackdropItemId && item.ParentBackdropImageTags?.length) {
-        const backdropImgIndex = random ? randomInt(0, item.ParentBackdropImageTags.length - 1) : 0;
+        const backdropImgIndex = getBackdropIndex(item.ParentBackdropImageTags.length, randomOrPreferred);
         return apiClient.getScaledImageUrl(item.ParentBackdropItemId, {
             type: ImageType.Backdrop,
             index: backdropImgIndex,

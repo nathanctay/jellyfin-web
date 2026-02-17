@@ -133,7 +133,12 @@ export default function HomeCarousel() {
                 loop={items.length > 1}
             >
                 {items.map((item) => {
-                    const backdropUrl = getItemBackdropImageUrl(apiClient, item, { maxWidth: 1920 })
+                    const backdropUrl = getItemBackdropImageUrl(
+                        apiClient,
+                        item,
+                        { fillWidth: 1920, fillHeight: 840 },
+                        1
+                    )
                     const isFeatured = item.Id ? featuredIds.has(item.Id) : false
                     const label = getCarouselLabel(item, isFeatured)
 
