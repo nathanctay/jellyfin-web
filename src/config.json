@@ -33,10 +33,10 @@
     {
       "name": "Request Movies/Shows",
       "icon": "cloud_download",
-      "url": "https://nl5167.dediseedbox.com:16038/"
+      "url": "https://nl5167.dediseedbox.com:45226/"
   }
   ],
-  "servers": [],
+  "servers": ["https://nl5167.dediseedbox.com:14650"],
   "plugins": [
     "playAccessValidation/plugin",
     "experimentalWarnings/plugin",
