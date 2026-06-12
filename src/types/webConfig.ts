@@ -16,6 +16,8 @@ export interface WebConfig {
     multiserver?: boolean
     themes?: Theme[]
     menuLinks?: MenuLink[]
+    featuredCollections?: string[]
+    carouselPlaylist?: string
     servers?: string[]
     plugins?: string[]
 }

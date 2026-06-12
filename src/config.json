@@ -36,6 +36,8 @@
       "url": "https://nl5167.dediseedbox.com:30578/"
   }
   ],
+  "featuredCollections": [],
+  "carouselPlaylist": "Carousel",
   "servers": ["https://nl5167.dediseedbox.com:14650"],
   "plugins": [
     "playAccessValidation/plugin",

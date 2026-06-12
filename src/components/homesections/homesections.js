@@ -7,11 +7,12 @@ import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
 
 import { loadRecordings } from './sections/activeRecordings';
-import { loadGenreRows } from './sections/genreRows';
+import { loadCollectionRows } from './sections/collectionRows';
 import { loadLibraryButtons } from './sections/libraryButtons';
 import { loadLibraryTiles } from './sections/libraryTiles';
 import { loadLiveTV } from './sections/liveTv';
 import { loadNextUp } from './sections/nextUp';
+import { loadPluginSections } from './sections/pluginSections';
 import { loadRecentlyAdded } from './sections/recentlyAdded';
 import { loadResume } from './sections/resume';
 
@@ -78,6 +79,19 @@ export function loadSections(elem, apiClient, user, userSettings) {
                     .map((section, index) => (
                         loadSection(elem, apiClient, user, userSettings, userViews, section, index)
                     ));
+
+                // Custom rows are intentionally not awaited: the plugin's section list
+                // and external integrations can be slow, and native sections must never
+                // wait on them. Each custom row resumes itself once its DOM exists.
+                // Pre-created mounts keep the group order stable (collections above
+                // plugin rows) no matter which response arrives first.
+                const customRowOptions = { enableOverflow: enableScrollX() };
+                const collectionRowsMount = document.createElement('div');
+                const pluginSectionsMount = document.createElement('div');
+                elem.appendChild(collectionRowsMount);
+                elem.appendChild(pluginSectionsMount);
+                loadCollectionRows(collectionRowsMount, apiClient, user, customRowOptions);
+                loadPluginSections(pluginSectionsMount, apiClient, user, customRowOptions);
 
                 return Promise.all(promises)
                     // Timeout for polyfilled CustomElements (webOS 1.2)

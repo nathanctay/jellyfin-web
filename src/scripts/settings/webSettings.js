@@ -117,6 +117,30 @@ export function getMenuLinks() {
     });
 }
 
+export function getFeaturedCollections() {
+    return getConfig().then(config => {
+        if (!Array.isArray(config.featuredCollections)) {
+            return [];
+        }
+        return config.featuredCollections.filter(name => typeof name === 'string' && name.trim());
+    }).catch(error => {
+        console.log('cannot get web config:', error);
+        return [];
+    });
+}
+
+export function getCarouselPlaylist() {
+    return getConfig().then(config => {
+        if (typeof config.carouselPlaylist !== 'string') {
+            return 'Carousel';
+        }
+        return config.carouselPlaylist.trim();
+    }).catch(error => {
+        console.log('cannot get web config:', error);
+        return 'Carousel';
+    });
+}
+
 export function getPlugins() {
     return getConfig().then(config => {
         if (!config.plugins) {
