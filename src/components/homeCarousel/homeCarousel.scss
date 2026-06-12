@@ -20,6 +20,20 @@
     overflow: hidden;
     background: #000;
 
+    // The slide is always a dark image/gradient surface, so the text color must
+    // not follow the theme: light themes would render black-on-dark.
+    color: #fff;
+
+    // The gradient lives on the container, not the backdrop, so the text stays
+    // readable while the backdrop is still transparent over the blurhash.
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 70%);
+        pointer-events: none;
+    }
+
     .homeCarouselBlurhash {
         position: absolute;
         inset: 0;
@@ -34,14 +48,6 @@
         background-size: cover;
         background-position: center;
         transition: opacity 0.5s ease;
-
-        &::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 70%);
-            pointer-events: none;
-        }
     }
 
     .homeCarouselContent {
@@ -97,6 +103,14 @@
 
         .mediaInfoCriticRating {
             text-shadow: none;
+        }
+
+        .mediaInfoOfficialRating {
+            border: 0.09em solid rgba(255, 255, 255, 0.8);
+            border-radius: 0.2em;
+            padding: 0 0.4em;
+            line-height: 1.4;
+            font-size: 0.85em;
         }
     }
 
@@ -179,7 +193,9 @@
     display: flex;
     gap: 6px;
     padding: 0.5rem 1rem 1rem;
-    background: rgba(0, 0, 0, 0.3);
+
+    // Solid dark, not theme-following: the white dots need contrast on light themes too.
+    background: rgba(0, 0, 0, 0.8);
     justify-content: center;
     flex-wrap: wrap;
 }
