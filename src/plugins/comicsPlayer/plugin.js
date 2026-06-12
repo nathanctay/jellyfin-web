@@ -1,6 +1,7 @@
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 import { Archive } from 'libarchive.js';
 
+import { PluginType } from 'constants/pluginType';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 import { toApi } from 'utils/jellyfin-apiclient/compat';
 
@@ -9,7 +10,6 @@ import dialogHelper from '../../components/dialogHelper/dialogHelper';
 import keyboardnavigation from '../../scripts/keyboardNavigation';
 import { appRouter } from '../../components/router/appRouter';
 import * as userSettings from '../../scripts/settings/userSettings';
-import { PluginType } from '../../types/plugin.ts';
 
 import './style.scss';
 
@@ -408,7 +408,6 @@ class ArchiveSource {
         });
 
         for (const file of files) {
-            /* eslint-disable-next-line compat/compat */
             const url = URL.createObjectURL(file.file);
             this.urls.push(url);
         }
@@ -416,7 +415,6 @@ class ArchiveSource {
 
     release() {
         this.files = [];
-        /* eslint-disable-next-line compat/compat */
         this.urls.forEach(URL.revokeObjectURL);
         this.urls = [];
     }

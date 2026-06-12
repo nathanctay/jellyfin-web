@@ -1,6 +1,7 @@
 import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
 import { PersonKind } from '@jellyfin/sdk/lib/generated-client/models/person-kind';
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
+import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
 import { intervalToDuration } from 'date-fns';
 import DOMPurify from 'dompurify';
 import escapeHtml from 'escape-html';
@@ -11,6 +12,7 @@ import { appHost } from 'components/apphost';
 import { clearBackdrop, setBackdrops } from 'components/backdrop/backdrop';
 import cardBuilder from 'components/cardbuilder/cardBuilder';
 import { buildCardImage } from 'components/cardbuilder/cardImage';
+import { getPortraitShape, getSquareShape } from 'components/cardbuilder/utils/shape';
 import confirm from 'components/confirm/confirm';
 import imageLoader from 'components/images/imageLoader';
 import itemContextMenu from 'components/itemContextMenu';
@@ -19,6 +21,7 @@ import mediaInfo from 'components/mediainfo/mediainfo';
 import layoutManager from 'components/layoutManager';
 import listView from 'components/listview/listview';
 import loading from 'components/loading/loading';
+import ItemDetailsMetadataList from 'components/itemDetails/ItemDetailsMetadataList';
 import { playbackManager } from 'components/playback/playbackmanager';
 import { appRouter } from 'components/router/appRouter';
 import itemShortcuts from 'components/shortcuts';
@@ -29,14 +32,15 @@ import { ServerConnections } from 'lib/jellyfin-apiclient';
 import browser from 'scripts/browser';
 import datetime from 'scripts/datetime';
 import dom from 'utils/dom';
+import { renderComponent } from 'utils/reactUtils';
 import { download } from 'scripts/fileDownloader';
 import libraryMenu from 'scripts/libraryMenu';
 import * as userSettings from 'scripts/settings/userSettings';
-import { getPortraitShape, getSquareShape } from 'utils/card';
 import Dashboard from 'utils/dashboard';
 import Events from 'utils/events';
 import { getItemBackdropImageUrl } from 'utils/jellyfin-apiclient/backdropImage';
 import { toApi } from 'utils/jellyfin-apiclient/compat';
+import { OutboundWebSocketMessageType } from '@jellyfin/sdk/lib/websocket';
 
 import 'elements/emby-itemscontainer/emby-itemscontainer';
 import 'elements/emby-checkbox/emby-checkbox';
@@ -551,6 +555,7 @@ function reloadFromItem(instance, page, params, item, user) {
     const apiClient = ServerConnections.getApiClient(item.ServerId);
 
     libraryMenu.setTitle('');
+    unmount(instance);
 
     // Start rendering the artwork first
     renderImage(page, item, apiClient);
@@ -566,7 +571,7 @@ function reloadFromItem(instance, page, params, item, user) {
 
     // Render the main information for the item
     renderName(item, page.querySelector('.nameContainer'), params.context);
-    renderDetails(page, item, apiClient, params.context);
+    renderDetails(page, instance, item, apiClient, params.context);
     renderTrackSelections(page, instance, item);
 
     renderSeriesTimerEditor(page, item, apiClient, user);
@@ -856,6 +861,9 @@ function setInitialCollapsibleState(page, item, apiClient, context, user) {
     (item.People || []).forEach(p => {
         if (p.Type === PersonKind.GuestStar) {
             guestCast.push(p);
+        } else if (p.Type === PersonKind.Artist || p.Type === PersonKind.AlbumArtist) {
+            // TODO remove this exclusion when artists are migrated to the persons endpoint
+            return;
         } else {
             cast.push(p);
         }
@@ -930,118 +938,6 @@ function renderOverview(page, item) {
     }
 }
 
-function renderGenres(page, item, context = inferContext(item)) {
-    const genres = item.GenreItems || [];
-    const type = context === 'music' ? 'MusicGenre' : 'Genre';
-
-    const html = genres.map(function (p) {
-        return '<a style="color:inherit;" class="button-link" is="emby-linkbutton" href="' + appRouter.getRouteUrl({
-            Name: p.Name,
-            Type: type,
-            ServerId: item.ServerId,
-            Id: p.Id
-        }, {
-            context: context
-        }) + '">' + escapeHtml(p.Name) + '</a>';
-    }).join(', ');
-
-    const genresLabel = page.querySelector('.genresLabel');
-    genresLabel.innerHTML = globalize.translate(genres.length > 1 ? 'Genres' : 'Genre');
-    const genresValue = page.querySelector('.genres');
-    genresValue.innerHTML = html;
-
-    const genresGroup = page.querySelector('.genresGroup');
-    if (genres.length) {
-        genresGroup.classList.remove('hide');
-    } else {
-        genresGroup.classList.add('hide');
-    }
-}
-
-function renderWriter(page, item, context) {
-    const writers = (item.People || []).filter(function (person) {
-        return person.Type === 'Writer';
-    });
-
-    const html = writers.map(function (person) {
-        return '<a style="color:inherit;" class="button-link" is="emby-linkbutton" href="' + appRouter.getRouteUrl({
-            Name: person.Name,
-            Type: 'Person',
-            ServerId: item.ServerId,
-            Id: person.Id
-        }, {
-            context: context
-        }) + '">' + escapeHtml(person.Name) + '</a>';
-    }).join(', ');
-
-    const writersLabel = page.querySelector('.writersLabel');
-    writersLabel.innerHTML = globalize.translate(writers.length > 1 ? 'Writers' : 'Writer');
-    const writersValue = page.querySelector('.writers');
-    writersValue.innerHTML = html;
-
-    const writersGroup = page.querySelector('.writersGroup');
-    if (writers.length) {
-        writersGroup.classList.remove('hide');
-    } else {
-        writersGroup.classList.add('hide');
-    }
-}
-
-function renderDirector(page, item, context) {
-    const directors = (item.People || []).filter(function (person) {
-        return person.Type === 'Director';
-    });
-
-    const html = directors.map(function (person) {
-        return '<a style="color:inherit;" class="button-link" is="emby-linkbutton" href="' + appRouter.getRouteUrl({
-            Name: person.Name,
-            Type: 'Person',
-            ServerId: item.ServerId,
-            Id: person.Id
-        }, {
-            context: context
-        }) + '">' + escapeHtml(person.Name) + '</a>';
-    }).join(', ');
-
-    const directorsLabel = page.querySelector('.directorsLabel');
-    directorsLabel.innerHTML = globalize.translate(directors.length > 1 ? 'Directors' : 'Director');
-    const directorsValue = page.querySelector('.directors');
-    directorsValue.innerHTML = html;
-
-    const directorsGroup = page.querySelector('.directorsGroup');
-    if (directors.length) {
-        directorsGroup.classList.remove('hide');
-    } else {
-        directorsGroup.classList.add('hide');
-    }
-}
-
-function renderStudio(page, item, context) {
-    // The list of studios can be massive for collections of items
-    if ([BaseItemKind.BoxSet, BaseItemKind.Playlist].includes(item.Type)) return;
-
-    const studios = item.Studios || [];
-
-    const html = studios.map(function (studio) {
-        return '<a style="color:inherit;" class="button-link" is="emby-linkbutton" href="' + appRouter.getRouteUrl({
-            Name: studio.Name,
-            Type: 'Studio',
-            ServerId: item.ServerId,
-            Id: studio.Id
-        }, {
-            context: context
-        }) + '">' + escapeHtml(studio.Name) + '</a>';
-    }).join(', ');
-
-    const studiosLabel = page.querySelector('.studiosLabel');
-    studiosLabel.innerText = globalize.translate(studios.length > 1 ? 'Studios' : 'Studio');
-    const studiosValue = page.querySelector('.studios');
-    studiosValue.innerHTML = html;
-
-    const studiosGroup = page.querySelector('.studiosGroup');
-    studiosGroup.classList.toggle('hide', !studios.length);
-}
-
 function renderMiscInfo(page, item) {
     const primaryItemMiscInfo = page.querySelectorAll('.itemMiscInfo-primary');
 
@@ -1085,14 +981,32 @@ function renderTagline(page, item) {
     }
 }
 
-function renderDetails(page, item, apiClient, context) {
+function renderDetails(page, instance, item, apiClient, context) {
+    const itemDetailsGroup = page.querySelector('.itemDetailsGroup');
+
+    if (itemDetailsGroup) {
+        itemDetailsGroup.innerHTML = '';
+
+        const metadataTypes = [
+            PersonKind.Author,
+            PersonKind.Director,
+            PersonKind.Writer,
+            BaseItemKind.Studio,
+            BaseItemKind.Genre
+        ];
+
+        for (const type of metadataTypes) {
+            const renderTarget = document.createElement('div');
+            const unmountMethod = renderComponent(ItemDetailsMetadataList, { type, item, context: inferContext(item) }, renderTarget);
+
+            instance._unmount.push(unmountMethod);
+            itemDetailsGroup.appendChild(renderTarget);
+        }
+    }
+
     renderSimilarItems(page, item, context);
     renderMoreFromSeason(page, item, apiClient);
     renderMoreFromArtist(page, item, apiClient);
-    renderDirector(page, item, context);
-    renderStudio(page, item, context);
-    renderWriter(page, item, context);
-    renderGenres(page, item, context);
     renderChannelGuide(page, apiClient, item);
     renderTagline(page, item);
     renderOverview(page, item);
@@ -1914,6 +1828,14 @@ function ItemDetailPage() {
     self.renderGuestCast = renderGuestCast;
 }
 
+function unmount(instance) {
+    for (const unmountMethod of instance._unmount) {
+        unmountMethod();
+    }
+
+    instance._unmount = [];
+}
+
 function bindAll(view, selector, eventName, fn) {
     const elems = view.querySelectorAll(selector);
 
@@ -2083,21 +2005,18 @@ export default function (view, params) {
         setTrailerButtonVisibility(view, currentItem);
     }
 
-    function onWebSocketMessage(e, data) {
-        const msg = data;
+    function onUserDataChanged({ Data }) {
         const apiClient = getApiClient();
 
-        if (msg.MessageType === 'UserDataChanged' && currentItem && msg.Data.UserId == apiClient.getCurrentUserId()) {
-            const key = currentItem.UserData.Key;
-            const userData = msg.Data.UserDataList.filter(function (u) {
-                return u.Key == key;
-            })[0];
+        if (!currentItem || Data?.UserId != apiClient.getCurrentUserId()) return;
 
-            if (userData) {
-                currentItem.UserData = userData;
-                reloadPlayButtons(view, currentItem);
-                autoFocus(view);
-            }
+        const key = currentItem.UserData.Key;
+        const userData = (Data?.UserDataList ?? []).find(u => u.Key == key);
+
+        if (userData) {
+            currentItem.UserData = userData;
+            reloadPlayButtons(view, currentItem);
+            autoFocus(view);
         }
     }
 
@@ -2106,6 +2025,8 @@ export default function (view, params) {
 
     function init() {
         const apiClient = getApiClient();
+
+        self._unmount = [];
 
         bindAll(view, '.btnPlay', 'click', onPlayClick);
         bindAll(view, '.btnReplay', 'click', onPlayClick);
@@ -2125,6 +2046,7 @@ export default function (view, params) {
             renderAudioSelections(view, self._currentPlaybackMediaSources);
             renderSubtitleSelections(view, self._currentPlaybackMediaSources);
             updateMiscInfo();
+            refreshSelectedVersion();
         });
         view.addEventListener('viewshow', function (e) {
             const page = this;
@@ -2141,18 +2063,24 @@ export default function (view, params) {
                 reload(self, page, params);
             }
 
-            Events.on(apiClient, 'message', onWebSocketMessage);
+            self._unsubscribeUserData = apiClient.subscribe(
+                [OutboundWebSocketMessageType.UserDataChanged],
+                onUserDataChanged
+            );
             Events.on(playbackManager, 'playerchange', onPlayerChange);
 
             itemShortcuts.on(view.querySelector('.nameContainer'));
         });
         view.addEventListener('viewbeforehide', function () {
             itemShortcuts.off(view.querySelector('.nameContainer'));
-            Events.off(apiClient, 'message', onWebSocketMessage);
+            self._unsubscribeUserData?.();
+            self._unsubscribeUserData = null;
             Events.off(playbackManager, 'playerchange', onPlayerChange);
             libraryMenu.setTransparentMenu(false);
         });
         view.addEventListener('viewdestroy', function () {
+            unmount(self);
+
             currentItem = null;
             self._currentPlaybackMediaSources = null;
             self.currentRecordingFields = null;
@@ -2165,6 +2093,42 @@ export default function (view, params) {
             // patch currentItem (primary item) with details from the selected MediaSource:
             ...currentItem,
             ...selectedMediaSource
+        });
+    }
+
+    // When the user picks an alternate version, fetch that Video item's own DTO
+    // and refresh the play/user-data buttons so resume position, watched state, and
+    // stack-part count reflect the selected version rather than the primary's.
+    function refreshSelectedVersion() {
+        const selectedId = view.querySelector('.selectSource').value;
+        if (!selectedId || !currentItem || selectedId === currentItem.Id) {
+            reloadPlayButtons(view, currentItem);
+            reloadUserDataButtons(view, currentItem);
+            return;
+        }
+
+        const apiClient = ServerConnections.getApiClient(currentItem.ServerId);
+        const api = toApi(apiClient);
+        getUserLibraryApi(api).getItem({
+            userId: apiClient.getCurrentUserId(),
+            itemId: selectedId
+        }).then(function ({ data: altItem }) {
+            if (view.querySelector('.selectSource').value !== selectedId) {
+                return;
+            }
+            // Keep primary's shared metadata (overview, cast, etc.) and override the
+            // fields that are intrinsic to the playback target (UserData, runtime, parts).
+            const merged = {
+                ...currentItem,
+                UserData: altItem.UserData,
+                RunTimeTicks: altItem.RunTimeTicks,
+                PartCount: altItem.PartCount,
+                MediaStreams: altItem.MediaStreams
+            };
+            reloadPlayButtons(view, merged);
+            reloadUserDataButtons(view, merged);
+        }).catch(function (err) {
+            console.error('failed to load alternate version item', err);
         });
     }
 
