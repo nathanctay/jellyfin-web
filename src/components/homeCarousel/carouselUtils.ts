@@ -73,7 +73,8 @@ export function getBackdropFillSize(
     const cappedDpr = Math.min(devicePixelRatio || 1, 2);
     const targetWidth = Math.round((viewportWidth || BACKDROP_MAX_WIDTH) * cappedDpr);
     const fillWidth = Math.min(BACKDROP_MAX_WIDTH, Math.max(BACKDROP_MIN_WIDTH, targetWidth));
-    // Container aspect ratio is 16:7
-    const fillHeight = Math.round(fillWidth * 7 / 16);
+    // Request the source 16:9 aspect so the server does not center-crop; the CSS
+    // cover + background-position handles the crop with focal control instead.
+    const fillHeight = Math.round(fillWidth * 9 / 16);
     return { fillWidth, fillHeight };
 }

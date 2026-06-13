@@ -110,9 +110,9 @@ describe('isNearActiveSlide', () => {
 });
 
 describe('getBackdropFillSize', () => {
-    it('scales by capped device pixel ratio and keeps 16:7', () => {
-        expect(getBackdropFillSize(800, 2)).toEqual({ fillWidth: 1600, fillHeight: 700 });
-        expect(getBackdropFillSize(800, 3)).toEqual({ fillWidth: 1600, fillHeight: 700 });
+    it('scales by capped device pixel ratio and keeps 16:9', () => {
+        expect(getBackdropFillSize(800, 2)).toEqual({ fillWidth: 1600, fillHeight: 900 });
+        expect(getBackdropFillSize(800, 3)).toEqual({ fillWidth: 1600, fillHeight: 900 });
     });
 
     it('clamps to the minimum and maximum widths', () => {
