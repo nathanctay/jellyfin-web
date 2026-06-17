@@ -1,3 +1,11 @@
+#loginPage {
+    .emby-input,
+    .emby-textarea,
+    .emby-button {
+        border-radius: 0.5em;
+    }
+}
+
 .loginDisclaimerContainer {
     display: flex;
     margin-top: 2em;
