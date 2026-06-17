@@ -2,13 +2,6 @@ import type { LegacyRoute } from 'components/router/LegacyRoute';
 
 export const LEGACY_PUBLIC_ROUTES: LegacyRoute[] = [
     {
-        path: 'selectserver',
-        pageProps: {
-            controller: 'session/selectServer/index',
-            view: 'session/selectServer/index.html'
-        }
-    },
-    {
         path: 'login',
         pageProps: {
             controller: 'session/login/index',

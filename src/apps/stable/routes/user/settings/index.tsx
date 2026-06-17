@@ -315,28 +315,6 @@ const UserSettingsPage: FC = () => {
                             >
                                 {globalize.translate('HeaderUser')}
                             </h2>
-
-                            {appHost.supports(AppFeature.MultiServer) && (
-                                <LinkButton
-                                    onClick={Dashboard.selectServer}
-                                    className='selectServer listItem-border'
-                                    style={{
-                                        display: 'block',
-                                        margin: 0,
-                                        padding: 0
-                                    }}
-                                >
-                                    <div className='listItem'>
-                                        <span className='material-icons listItemIcon listItemIcon-transparent storage' aria-hidden='true' />
-                                        <div className='listItemBody'>
-                                            <div className='listItemBodyText'>
-                                                {globalize.translate('SelectServer')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </LinkButton>
-                            )}
-
                             <LinkButton
                                 onClick={Dashboard.logout}
                                 className='btnLogout listItem-border'

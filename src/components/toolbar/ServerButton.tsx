@@ -1,4 +1,4 @@
-import icon from '@jellyfin/ux-web/icon-transparent.png';
+import logo from 'assets/img/logo.png';
 import Button from '@mui/material/Button/Button';
 import React, { FC } from 'react';
 import { Link } from 'react-router-dom';
@@ -16,21 +16,18 @@ const ServerButton: FC = () => {
             variant='text'
             size='large'
             color='inherit'
-            startIcon={
-                <img
-                    src={icon}
-                    alt=''
-                    aria-hidden
-                    style={{
-                        maxHeight: '1.25em',
-                        maxWidth: '1.25em'
-                    }}
-                />
-            }
             component={Link}
             to='/'
+            aria-label={isPending ? '' : (systemInfo?.ServerName || 'Jellyfin')}
         >
-            {isPending ? '' : (systemInfo?.ServerName || 'Jellyfin')}
+            <img
+                src={logo}
+                alt={isPending ? '' : (systemInfo?.ServerName || 'Jellyfin')}
+                style={{
+                    height: '1.5em',
+                    maxWidth: '11em'
+                }}
+            />
         </Button>
     );
 };

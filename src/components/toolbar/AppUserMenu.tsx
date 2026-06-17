@@ -58,11 +58,6 @@ const AppUserMenu: FC<AppUserMenuProps> = ({
         onMenuClose();
     }, [ onMenuClose ]);
 
-    const onSelectServerClick = useCallback(() => {
-        Dashboard.selectServer();
-        onMenuClose();
-    }, [ onMenuClose ]);
-
     return (
         <Menu
             anchorEl={anchorEl}
@@ -174,19 +169,6 @@ const AppUserMenu: FC<AppUserMenuProps> = ({
                     </ListItemIcon>
                     <ListItemText>
                         {globalize.translate('QuickConnect')}
-                    </ListItemText>
-                </MenuItem>
-            )}
-
-            {appHost.supports(AppFeature.MultiServer) && (
-                <MenuItem
-                    onClick={onSelectServerClick}
-                >
-                    <ListItemIcon>
-                        <Storage />
-                    </ListItemIcon>
-                    <ListItemText>
-                        {globalize.translate('SelectServer')}
                     </ListItemText>
                 </MenuItem>
             )}

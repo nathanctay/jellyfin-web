@@ -33,12 +33,12 @@
     {
       "name": "Request Movies/Shows",
       "icon": "cloud_download",
-      "url": "https://nl5167.dediseedbox.com:30578/"
+      "url": "https://seerr-nathanctay.tofino.usbx.me/"
   }
   ],
   "featuredCollections": [],
   "carouselPlaylist": "Carousel",
-  "servers": ["https://nl5167.dediseedbox.com:14650"],
+  "servers": ["https://nathanctay.tofino.usbx.me/jellyfin"],
   "plugins": [
     "playAccessValidation/plugin",
     "experimentalWarnings/plugin",

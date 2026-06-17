@@ -18,7 +18,7 @@
     animation: fadein 0.5s;
     width: 30%;
     height: 30%;
-    background-image: url(@jellyfin/ux-web/icon-transparent.png);
+    background-image: url("../assets/img/logo.png");
     background-position: center center;
     background-repeat: no-repeat;
     background-size: contain;
@@ -26,13 +26,6 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-}
-
-@media screen
-    and (min-device-width: 992px) {
-    .splashLogo {
-        background-image: url("../assets/img/logo.png");
-    }
 }
 
 html {

@@ -19,7 +19,6 @@ const START_PAGE_PATHS = ['/home', '/login'];
 
 /** Pages that do not require a user to be logged in to view. */
 const PUBLIC_PATHS = [
-    '/selectserver',
     '/login',
     '/forgotpassword',
     '/forgotpasswordpin',
