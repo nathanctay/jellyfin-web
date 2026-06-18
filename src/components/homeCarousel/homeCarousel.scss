@@ -1,5 +1,23 @@
 .homeCarouselWrapper {
+    // How far the page content (first row) rides up under the carousel's faded
+    // bottom. Tune this to move where the bar "ends" relative to the first row.
+    --carousel-overlap: 9vh;
+
+    position: relative;
     width: 100%;
+
+    // Pull the following rows up into the carousel's masked bottom so the bar
+    // dissolves into the first row instead of ending on a hard edge, matching the
+    // media-bar plugin. The progress bar is overlaid just above this seam.
+    margin-bottom: calc(-1 * var(--carousel-overlap));
+}
+
+// Making the wrapper positioned lifts it into the painted-on-top layer, so the
+// rows that ride up under it must be lifted higher to stay on top of the faded
+// carousel bottom. The progress bar (z-index 2) still wins over both.
+.homeCarouselWrapper + .sections {
+    position: relative;
+    z-index: 1;
 }
 
 .homeCarouselSwiper {
@@ -14,23 +32,31 @@
 .homeCarouselContainer {
     position: relative;
     width: 100%;
-    aspect-ratio: 2 / 1;
-    max-height: 60vh;
-    min-height: 200px;
+    height: 80vh;
+    min-height: 360px;
+    max-height: 780px;
     overflow: hidden;
     background: #000;
+
+    // Match the media-bar plugin: the bottom edge of the bar dissolves into the
+    // page below instead of ending on a hard rectangle. The mask fades the whole
+    // surface (image, blurhash and gradient) to transparent, starting just above
+    // the overlap seam so the image is already fading as the first row rides up.
+    mask-image: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.5) 6%, #000 16%);
 
     // The slide is always a dark image/gradient surface, so the text color must
     // not follow the theme: light themes would render black-on-dark.
     color: #fff;
 
     // The gradient lives on the container, not the backdrop, so the text stays
-    // readable while the backdrop is still transparent over the blurhash.
+    // readable while the backdrop is still transparent over the blurhash. It is
+    // shifted up off the very bottom so the darkest band sits behind the text
+    // rather than in the masked-away fade zone.
     &::after {
         content: '';
         position: absolute;
         inset: 0;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 70%);
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.5) 45%, transparent 75%);
         pointer-events: none;
     }
 
@@ -55,7 +81,8 @@
         left: 0;
         right: 0;
         bottom: 0;
-        padding: 2rem 2rem 3rem;
+        // Keep the action row above both the progress bar and the overlap seam.
+        padding: 2rem 2rem calc(var(--carousel-overlap) + 3rem);
         z-index: 1;
         display: flex;
         flex-direction: column;
@@ -133,11 +160,11 @@
 
     .homeCarouselActions {
         display: flex;
+        align-items: center;
         gap: 0.75rem;
         margin-top: 0.25rem;
 
-        .btnPlay,
-        .btnMore {
+        .btnPlay {
             padding: 0.5rem 1.25rem;
             border-radius: 4px;
             font-weight: 600;
@@ -147,9 +174,6 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-        }
-
-        .btnPlay {
             background: #00a4dc;
             color: #fff;
 
@@ -158,15 +182,9 @@
             }
         }
 
-        .btnMore {
-            background: rgba(255, 255, 255, 0.25);
-            color: #fff;
-
-            &:hover {
-                background: rgba(255, 255, 255, 0.35);
-            }
-        }
-
+        // The More button mirrors the Favorite button: a circular, icon-only
+        // control flanking Play (More on the left, Favorite on the right).
+        .btnMore,
         .btnFavorite {
             padding: 0.5rem;
             border-radius: 50%;
@@ -181,21 +199,30 @@
             &:hover {
                 background: rgba(255, 255, 255, 0.35);
             }
+        }
 
-            &.btnFavorite-active .material-icons {
-                color: #e25555;
-            }
+        .btnFavorite.btnFavorite-active .material-icons {
+            color: #e25555;
         }
     }
 }
 
 .homeCarouselProgressBar {
+    // Overlaid on the carousel just above the overlap seam so it stays visible
+    // and clickable while the rows ride up underneath the faded bottom.
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--carousel-overlap) + 6px);
+    z-index: 2;
+
     display: flex;
     gap: 6px;
-    padding: 0.5rem 1rem 1rem;
+    padding: 0 1rem;
 
-    // Solid dark, not theme-following: the white dots need contrast on light themes too.
-    background: rgba(0, 0, 0, 0.8);
+    // Transparent so the carousel's masked bottom edge fades into the page
+    // without a hard dark band underneath it.
+    background: transparent;
     justify-content: center;
     flex-wrap: wrap;
 }

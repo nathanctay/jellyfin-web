@@ -259,12 +259,15 @@ function CarouselSlideContent({
     }, [loadStarted, backdropUrl]);
 
     const blurhash = getSlideBackdropBlurhash(item);
-    const label = getSlideLabel(item, isPlaylistItem, 'Featured', globalize.translate('Suggestions'));
+    // Fill items carry no label (the old "Suggestions" tag); playlist items keep
+    // their custom "carousel:" tag or the default "Featured" badge.
+    const label = getSlideLabel(item, isPlaylistItem, 'Featured', '');
     const logoTag = item.ImageTags?.Logo;
     const logoUrl = logoTag && item.Id ?
         apiClient.getScaledImageUrl(item.Id, { type: 'Logo', tag: logoTag, maxHeight: 280 }) :
         null;
     const favoriteLabel = globalize.translate(isFavorite ? 'Favorite' : 'AddToFavorites');
+    const moreLabel = globalize.translate('More');
 
     return (
         <div className='homeCarouselContainer'>
@@ -284,7 +287,7 @@ function CarouselSlideContent({
                     { opacity: 0 }}
             />
             <div className='homeCarouselContent'>
-                <div className='homeCarouselLabel'>{label}</div>
+                {label && <div className='homeCarouselLabel'>{label}</div>}
                 {logoUrl ? (
                     <img className='homeCarouselLogo' src={logoUrl} alt={item.Name ?? ''} />
                 ) : (
@@ -295,6 +298,15 @@ function CarouselSlideContent({
                     <p className='homeCarouselOverview'>{item.Overview}</p>
                 )}
                 <div className='homeCarouselActions'>
+                    <button
+                        type='button'
+                        className='btnMore'
+                        onClick={handleMore}
+                        aria-label={moreLabel}
+                        title={moreLabel}
+                    >
+                        <span className='material-icons' aria-hidden>info</span>
+                    </button>
                     {playbackManager.canPlay(item) && (
                         <button
                             type='button'
@@ -305,14 +317,6 @@ function CarouselSlideContent({
                             {globalize.translate('Play')}
                         </button>
                     )}
-                    <button
-                        type='button'
-                        className='btnMore'
-                        onClick={handleMore}
-                    >
-                        <span className='material-icons' aria-hidden>info</span>
-                        {globalize.translate('More')}
-                    </button>
                     <button
                         type='button'
                         className={'btnFavorite' + (isFavorite ? ' btnFavorite-active' : '')}
