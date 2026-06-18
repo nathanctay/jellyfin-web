@@ -82,7 +82,9 @@
         right: 0;
         bottom: 0;
         // Keep the action row above both the progress bar and the overlap seam.
-        padding: 2rem 2rem calc(var(--carousel-overlap) + 3rem);
+        // Extra left inset clears the prev arrow (1rem + 3rem wide) so the logo
+        // and text never sit under it.
+        padding: 2rem 2rem calc(var(--carousel-overlap) + 4rem) 5rem;
         z-index: 1;
         display: flex;
         flex-direction: column;
@@ -225,6 +227,49 @@
     background: transparent;
     justify-content: center;
     flex-wrap: wrap;
+}
+
+.homeCarouselNav {
+    // Vertically centered on the visible image (above the overlap seam), one on
+    // each edge, like the media-bar plugin. Dim by default, brighter on hover.
+    position: absolute;
+    top: calc((100% - var(--carousel-overlap)) / 2);
+    transform: translateY(-50%);
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #fff;
+    background: rgba(0, 0, 0, 0);
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+
+    // Material icons size from the element font-size; set it here to avoid a
+    // nested .material-icons rule that would trip descending-specificity.
+    font-size: 2rem;
+
+    &:hover {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0);
+    }
+}
+
+.homeCarouselWrapper:hover .homeCarouselNav {
+    opacity: 1;
+}
+
+.homeCarouselNav--prev {
+    left: 1rem;
+}
+
+.homeCarouselNav--next {
+    right: 1rem;
 }
 
 .homeCarouselProgressBarItem {

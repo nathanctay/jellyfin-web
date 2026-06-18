@@ -305,7 +305,7 @@ function CarouselSlideContent({
                         aria-label={moreLabel}
                         title={moreLabel}
                     >
-                        <span className='material-icons' aria-hidden>info</span>
+                        <span className='material-icons' aria-hidden>info_outline</span>
                     </button>
                     {playbackManager.canPlay(item) && (
                         <button
@@ -350,6 +350,14 @@ export default function HomeCarousel() {
 
     const onProgressClick = useCallback((index: number) => {
         swiperRef.current?.slideTo(index);
+    }, []);
+
+    const onPrev = useCallback(() => {
+        swiperRef.current?.slidePrev();
+    }, []);
+
+    const onNext = useCallback(() => {
+        swiperRef.current?.slideNext();
     }, []);
 
     const onPlay = useCallback((item: BaseItemDto) => {
@@ -409,6 +417,28 @@ export default function HomeCarousel() {
                     </SwiperSlide>
                 ))}
             </Swiper>
+            {items.length > 1 && (
+                <>
+                    <button
+                        type='button'
+                        className='homeCarouselNav homeCarouselNav--prev'
+                        onClick={onPrev}
+                        aria-label={globalize.translate('Previous')}
+                        title={globalize.translate('Previous')}
+                    >
+                        <span className='material-icons' aria-hidden>chevron_left</span>
+                    </button>
+                    <button
+                        type='button'
+                        className='homeCarouselNav homeCarouselNav--next'
+                        onClick={onNext}
+                        aria-label={globalize.translate('Next')}
+                        title={globalize.translate('Next')}
+                    >
+                        <span className='material-icons' aria-hidden>chevron_right</span>
+                    </button>
+                </>
+            )}
             <CarouselProgressBar
                 count={items.length}
                 activeIndex={activeIndex}
