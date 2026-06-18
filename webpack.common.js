@@ -43,6 +43,13 @@ const THEMES_BY_ID = THEMES.reduce((acc, theme) => {
 const config = {
     context: path.resolve(__dirname, 'src'),
     target: 'browserslist',
+    cache: {
+        type: 'filesystem',
+        // Invalidate the cache when the build config itself changes
+        buildDependencies: {
+            config: [__filename]
+        }
+    },
     entry: {
         'main.jellyfin': './index.jsx',
         ...THEMES_BY_ID

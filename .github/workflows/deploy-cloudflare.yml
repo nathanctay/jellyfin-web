@@ -1,0 +1,56 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+# Set your Cloudflare Pages project name here.
+env:
+  CF_PAGES_PROJECT: jellyfin-web
+
+concurrency:
+  group: deploy-cloudflare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Persist webpack's filesystem cache between runs so builds are incremental.
+      # The github.sha suffix forces a fresh save each run; restore-keys pulls the
+      # most recent prior cache so only changed modules are recompiled.
+      - name: Restore webpack cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.cache/webpack
+          key: webpack-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            webpack-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            webpack-${{ runner.os }}-
+
+      - name: Build
+        run: npm run build:production
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ env.CF_PAGES_PROJECT }} --branch=${{ github.ref_name }}
