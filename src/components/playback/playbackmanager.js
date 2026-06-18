@@ -3752,6 +3752,9 @@ export class PlaybackManager {
                         self.setDefaultPlayerActive.bind(self)
                     );
                 });
+                Events.on(ServerConnections, 'localusersignedout', () => {
+                    _unsubscribeRemoteControl?.();
+                });
             });
         }
 
