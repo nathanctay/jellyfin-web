@@ -32,6 +32,7 @@ import { ServerConnections } from 'lib/jellyfin-apiclient';
 import browser from 'scripts/browser';
 import datetime from 'scripts/datetime';
 import dom from 'utils/dom';
+import { getCollectionForMovie } from 'utils/collectionIndex';
 import { renderComponent } from 'utils/reactUtils';
 import { download } from 'scripts/fileDownloader';
 import libraryMenu from 'scripts/libraryMenu';
@@ -1005,6 +1006,7 @@ function renderDetails(page, instance, item, apiClient, context) {
     }
 
     renderSimilarItems(page, item, context);
+    renderCollectionMovies(page, item, context);
     renderMoreFromSeason(page, item, apiClient);
     renderMoreFromArtist(page, item, apiClient);
     renderChannelGuide(page, apiClient, item);
@@ -1208,6 +1210,64 @@ function renderSimilarItems(page, item, context) {
             imageLoader.lazyChildren(similarContent);
         });
     }
+}
+
+function renderCollectionMovies(page, item, context) {
+    const collapsible = page.querySelector('#collectionMoviesCollapsible');
+
+    if (!collapsible) {
+        return;
+    }
+
+    if (item.Type !== 'Movie') {
+        collapsible.classList.add('hide');
+        return;
+    }
+
+    const apiClient = ServerConnections.getApiClient(item.ServerId);
+    const userId = apiClient.getCurrentUserId();
+
+    getCollectionForMovie(apiClient, userId, item.Id).then(function (collection) {
+        if (!collection) {
+            collapsible.classList.add('hide');
+            return;
+        }
+
+        return apiClient.getItems(userId, {
+            ParentId: collection.boxSetId,
+            IncludeItemTypes: 'Movie',
+            ExcludeItemIds: item.Id,
+            SortBy: 'PremiereDate,ProductionYear,SortName',
+            Fields: 'PrimaryImageAspectRatio,CanDelete'
+        }).then(function (result) {
+            const items = result.Items || [];
+            if (!items.length) {
+                collapsible.classList.add('hide');
+                return;
+            }
+
+            collapsible.classList.remove('hide');
+            collapsible.querySelector('h2').innerText = globalize.translate('MoreFromValue', collection.boxSetName);
+
+            const html = cardBuilder.getCardsHtml({
+                items: items,
+                shape: 'autooverflow',
+                centerText: true,
+                showTitle: true,
+                showYear: true,
+                context: context,
+                lazy: true,
+                overlayPlayButton: true,
+                overlayText: false
+            });
+            const content = collapsible.querySelector('.collectionMoviesContent');
+            content.innerHTML = html;
+            imageLoader.lazyChildren(content);
+        });
+    }).catch(function (err) {
+        console.error('[itemDetails] failed to render collection movies', err);
+        collapsible.classList.add('hide');
+    });
 }
 
 function renderSeriesAirTime(page, item) {
