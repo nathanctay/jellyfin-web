@@ -43,6 +43,23 @@ describe('getCollectionForMovie', () => {
         expect(apiClient.getItems.mock.calls.length).toBe(callsAfterBuild);
     });
 
+    it('still indexes other box sets when one box set\'s children fail to load', async () => {
+        const getItems = vi.fn(async (_userId: string, query: Record<string, unknown>) => {
+            if (query.IncludeItemTypes === 'BoxSet') {
+                return { Items: [
+                    { Id: 'bad', Name: 'Broken' },
+                    { Id: 'good', Name: 'Good Collection' }
+                ] };
+            }
+            if (query.ParentId === 'bad') throw new Error('boom');
+            if (query.ParentId === 'good') return { Items: [{ Id: 'm9' }, { Id: 'm10' }] };
+            return { Items: [] };
+        });
+        const apiClient = { serverId: () => 'srv', getItems };
+        const result = await getCollectionForMovie(apiClient as never, 'u1', 'm9');
+        expect(result).toEqual({ boxSetId: 'good', boxSetName: 'Good Collection' });
+    });
+
     it('prefers the TMDb box set when a movie belongs to multiple collections', async () => {
         const getItems = vi.fn(async (_userId: string, query: Record<string, unknown>) => {
             if (query.IncludeItemTypes === 'BoxSet') {

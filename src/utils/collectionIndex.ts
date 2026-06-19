@@ -28,6 +28,8 @@ function isTmdbBoxSet(boxSet: BaseItemDto): boolean {
     );
 }
 
+type BoxSetGroup = { boxSetId: string; boxSetName: string; isTmdb: boolean; movieIds: string[] };
+
 async function buildIndex(apiClient: ApiClient, userId: string): Promise<CollectionIndex> {
     const boxSetsResult = await apiClient.getItems(userId, {
         IncludeItemTypes: 'BoxSet',
@@ -41,7 +43,7 @@ async function buildIndex(apiClient: ApiClient, userId: string): Promise<Collect
     // to a single collection deterministically: prefer the TMDb-created box set,
     // then fall back to a stable name/id order. First writer wins after the sort,
     // so the result does not depend on which fetch resolves first.
-    const groups = await Promise.all(boxSets.map(async (boxSet) => {
+    const settled = await Promise.allSettled(boxSets.map(async (boxSet): Promise<BoxSetGroup | null> => {
         const boxSetId = boxSet.Id;
         if (!boxSetId) return null;
         const childrenResult = await apiClient.getItems(userId, {
@@ -54,8 +56,18 @@ async function buildIndex(apiClient: ApiClient, userId: string): Promise<Collect
         return { boxSetId, boxSetName: boxSet.Name || '', isTmdb: isTmdbBoxSet(boxSet), movieIds };
     }));
 
-    const sorted = groups
-        .filter((group): group is NonNullable<typeof group> => group !== null)
+    // One box set's children failing must not discard the entire index; log and
+    // drop only the failed groups, then build from the rest.
+    settled.forEach((result) => {
+        if (result.status === 'rejected') {
+            console.error('[collectionIndex] failed to load box set children', result.reason);
+        }
+    });
+
+    const sorted = settled
+        .filter((result): result is PromiseFulfilledResult<BoxSetGroup | null> => result.status === 'fulfilled')
+        .map((result) => result.value)
+        .filter((group): group is BoxSetGroup => group !== null)
         .sort((a, b) => {
             if (a.isTmdb !== b.isTmdb) return a.isTmdb ? -1 : 1;
             return a.boxSetName.localeCompare(b.boxSetName) || a.boxSetId.localeCompare(b.boxSetId);
