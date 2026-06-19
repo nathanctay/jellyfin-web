@@ -42,4 +42,21 @@ describe('getCollectionForMovie', () => {
         await getCollectionForMovie(apiClient as never, 'u1', 'm2');
         expect(apiClient.getItems.mock.calls.length).toBe(callsAfterBuild);
     });
+
+    it('prefers the TMDb box set when a movie belongs to multiple collections', async () => {
+        const getItems = vi.fn(async (_userId: string, query: Record<string, unknown>) => {
+            if (query.IncludeItemTypes === 'BoxSet') {
+                return { Items: [
+                    { Id: 'manual', Name: 'My Favourites' },
+                    { Id: 'tmdb1', Name: 'John Wick Collection', ProviderIds: { Tmdb: '404609' } }
+                ] };
+            }
+            if (query.ParentId === 'manual') return { Items: [{ Id: 'm1' }] };
+            if (query.ParentId === 'tmdb1') return { Items: [{ Id: 'm1' }, { Id: 'm2' }] };
+            return { Items: [] };
+        });
+        const apiClient = { serverId: () => 'srv', getItems };
+        const result = await getCollectionForMovie(apiClient as never, 'u1', 'm1');
+        expect(result).toEqual({ boxSetId: 'tmdb1', boxSetName: 'John Wick Collection' });
+    });
 });

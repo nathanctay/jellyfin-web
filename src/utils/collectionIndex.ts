@@ -1,4 +1,5 @@
 import type { ApiClient } from 'jellyfin-apiclient';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
 
 import { readRowCache, writeRowCache } from 'components/homesections/sections/customRowsUtils';
 
@@ -20,28 +21,54 @@ function indexCacheKey(apiClient: ApiClient, userId: string): string {
     return `collectionIndex:${apiClient.serverId()}:${userId}`;
 }
 
+function isTmdbBoxSet(boxSet: BaseItemDto): boolean {
+    const providerIds = boxSet.ProviderIds || {};
+    return Object.keys(providerIds).some(
+        (key) => key.toLowerCase().includes('tmdb') && !!providerIds[key]
+    );
+}
+
 async function buildIndex(apiClient: ApiClient, userId: string): Promise<CollectionIndex> {
     const boxSetsResult = await apiClient.getItems(userId, {
         IncludeItemTypes: 'BoxSet',
-        Recursive: true
+        Recursive: true,
+        Fields: 'ProviderIds'
     });
     const boxSets = boxSetsResult?.Items || [];
 
-    const index: CollectionIndex = {};
-    await Promise.all(boxSets.map(async (boxSet) => {
+    // A movie can belong to more than one box set (e.g. a manual collection on
+    // top of the TMDb one). Fetch every box set's movies, then assign each movie
+    // to a single collection deterministically: prefer the TMDb-created box set,
+    // then fall back to a stable name/id order. First writer wins after the sort,
+    // so the result does not depend on which fetch resolves first.
+    const groups = await Promise.all(boxSets.map(async (boxSet) => {
         const boxSetId = boxSet.Id;
-        if (!boxSetId) return;
+        if (!boxSetId) return null;
         const childrenResult = await apiClient.getItems(userId, {
             ParentId: boxSetId,
             IncludeItemTypes: 'Movie'
         });
-        const children = childrenResult?.Items || [];
-        children.forEach((movie) => {
-            if (movie.Id) {
-                index[movie.Id] = { boxSetId, boxSetName: boxSet.Name || '' };
-            }
-        });
+        const movieIds = (childrenResult?.Items || [])
+            .map((movie) => movie.Id)
+            .filter((id): id is string => !!id);
+        return { boxSetId, boxSetName: boxSet.Name || '', isTmdb: isTmdbBoxSet(boxSet), movieIds };
     }));
+
+    const sorted = groups
+        .filter((group): group is NonNullable<typeof group> => group !== null)
+        .sort((a, b) => {
+            if (a.isTmdb !== b.isTmdb) return a.isTmdb ? -1 : 1;
+            return a.boxSetName.localeCompare(b.boxSetName) || a.boxSetId.localeCompare(b.boxSetId);
+        });
+
+    const index: CollectionIndex = {};
+    for (const group of sorted) {
+        for (const movieId of group.movieIds) {
+            if (!(movieId in index)) {
+                index[movieId] = { boxSetId: group.boxSetId, boxSetName: group.boxSetName };
+            }
+        }
+    }
 
     return index;
 }
