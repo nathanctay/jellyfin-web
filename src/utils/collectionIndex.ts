@@ -29,15 +29,16 @@ async function buildIndex(apiClient: ApiClient, userId: string): Promise<Collect
 
     const index: CollectionIndex = {};
     await Promise.all(boxSets.map(async (boxSet) => {
-        if (!boxSet.Id) return;
+        const boxSetId = boxSet.Id;
+        if (!boxSetId) return;
         const childrenResult = await apiClient.getItems(userId, {
-            ParentId: boxSet.Id,
+            ParentId: boxSetId,
             IncludeItemTypes: 'Movie'
         });
         const children = childrenResult?.Items || [];
         children.forEach((movie) => {
             if (movie.Id) {
-                index[movie.Id] = { boxSetId: boxSet.Id, boxSetName: boxSet.Name || '' };
+                index[movie.Id] = { boxSetId, boxSetName: boxSet.Name || '' };
             }
         });
     }));
