@@ -40,6 +40,24 @@ describe('filterSupportedSections', () => {
         expect(filterSupportedSections(sections).map((s) => s.Section))
             .toEqual(['LatestMovies', 'UpcomingShows']);
     });
+
+    it('collapses duplicate genre rows with the same title', () => {
+        const sections = [
+            { Section: 'Genre', DisplayText: 'Thriller movies' },
+            { Section: 'Genre', DisplayText: 'Thriller movies' },
+            { Section: 'Genre', DisplayText: 'Action movies' }
+        ];
+        expect(filterSupportedSections(sections).map((s) => s.DisplayText))
+            .toEqual(['Thriller movies', 'Action movies']);
+    });
+
+    it('keeps same-type rows that differ in title or data', () => {
+        const sections = [
+            { Section: 'BecauseYouWatched', DisplayText: 'Because you watched A', AdditionalData: 'a' },
+            { Section: 'BecauseYouWatched', DisplayText: 'Because you watched B', AdditionalData: 'b' }
+        ];
+        expect(filterSupportedSections(sections)).toHaveLength(2);
+    });
 });
 
 describe('matchCollectionsByName', () => {

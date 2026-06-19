@@ -75,7 +75,8 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 elem.innerHTML = html;
                 elem.classList.add('homeSectionsContainer');
 
-                const promises = getAllSectionsToShow(userSettings)
+                const sectionsToShow = getAllSectionsToShow(userSettings);
+                const promises = sectionsToShow
                     .map((section, index) => (
                         loadSection(elem, apiClient, user, userSettings, userViews, section, index)
                     ));
@@ -90,8 +91,24 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 const pluginSectionsMount = document.createElement('div');
                 elem.appendChild(collectionRowsMount);
                 elem.appendChild(pluginSectionsMount);
+
+                // The My Requests row is pulled out of the plugin group and mounted
+                // directly after Continue Watching so it reads as the third row (hero
+                // carousel, Continue Watching, then My Requests) rather than sitting
+                // with the other plugin rows below the native sections.
+                const myRequestsMount = document.createElement('div');
+                const resumeIndex = sectionsToShow.indexOf(HomeSectionType.Resume);
+                const resumeSection = resumeIndex >= 0 ? elem.querySelector('.section' + resumeIndex) : null;
+                if (resumeSection) {
+                    elem.insertBefore(myRequestsMount, resumeSection.nextSibling);
+                } else {
+                    elem.insertBefore(myRequestsMount, collectionRowsMount);
+                }
+
                 loadCollectionRows(collectionRowsMount, apiClient, user, customRowOptions);
-                loadPluginSections(pluginSectionsMount, apiClient, user, customRowOptions);
+                loadPluginSections(pluginSectionsMount, apiClient, user, customRowOptions, (info) => (
+                    info.Section === 'MyJellyseerrRequests' ? myRequestsMount : pluginSectionsMount
+                ));
 
                 return Promise.all(promises)
                     // Timeout for polyfilled CustomElements (webOS 1.2)

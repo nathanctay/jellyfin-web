@@ -82,9 +82,21 @@ export function isPortraitViewMode(viewMode: string | number | null | undefined)
 }
 
 export function filterSupportedSections(sections: PluginSectionInfo[]): PluginSectionInfo[] {
-    return sections.filter(
-        (section) => !!section.Section && SUPPORTED_PLUGIN_SECTIONS.includes(section.Section)
-    );
+    // The Home Screen Sections plugin picks genres randomly and can emit the same
+    // one more than once (e.g. two "Thriller movies" rows). Collapse descriptors
+    // that are identical in type, title and data so each row appears once. This
+    // only drops true duplicates; distinct rows like "Because you watched A" vs
+    // "...B" differ in DisplayText and are kept.
+    const seen = new Set<string>();
+    return sections.filter((section) => {
+        if (!section.Section || !SUPPORTED_PLUGIN_SECTIONS.includes(section.Section)) {
+            return false;
+        }
+        const key = `${section.Section}|${section.DisplayText || ''}|${section.AdditionalData || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 export function matchCollectionsByName<T extends { Name?: string | null }>(

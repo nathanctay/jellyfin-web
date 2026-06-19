@@ -119,7 +119,8 @@ export function loadPluginSections(
     elem: HTMLElement,
     apiClient: ApiClient,
     user: UserDto,
-    options: SectionOptions
+    options: SectionOptions,
+    getMount?: (info: PluginSectionInfo) => HTMLElement
 ): Promise<void> {
     const userId = user.Id || apiClient.getCurrentUserId();
     const url = apiClient.getUrl('HomeScreen/Sections', { userId });
@@ -135,7 +136,8 @@ export function loadPluginSections(
             if (!elem.isConnected) return;
 
             sections.forEach((info) => {
-                renderPluginSection(elem, apiClient, userId, info, options);
+                const mount = getMount?.(info) ?? elem;
+                renderPluginSection(mount, apiClient, userId, info, options);
             });
         })
         .catch((err: unknown) => {
