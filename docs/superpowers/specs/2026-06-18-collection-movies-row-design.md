@@ -42,11 +42,20 @@ Builds and caches a reverse map from movie id to its BoxSet, working around the
 missing reverse-lookup API.
 
 - Build steps:
-  1. `GET /Items?IncludeItemTypes=BoxSet&Recursive=true` -> list of BoxSets
-     (1 request).
+  1. `GET /Items?IncludeItemTypes=BoxSet&Recursive=true&Fields=ProviderIds` ->
+     list of BoxSets with their provider ids (1 request).
   2. For each BoxSet: `GET /Items?ParentId=<id>&IncludeItemTypes=Movie` ->
      child movie ids (N requests).
   3. Construct `Map<movieId, { boxSetId, boxSetName }>`.
+- Multiple-collection handling: a movie can belong to more than one BoxSet
+  (e.g. a manual collection layered on the TMDB one). The index keeps a single
+  collection per movie, chosen deterministically: prefer the TMDB-created
+  BoxSet (detected by a `Tmdb*` key in its `ProviderIds`), then fall back to a
+  stable order (BoxSet name, then id). Assignment is first-writer-wins after
+  sorting the BoxSets by this preference, so the result does not depend on the
+  order in which the per-BoxSet fetches resolve. TMDB's `belongs_to_collection`
+  is singular, so pure-TMDB libraries never hit the tie; the rule only matters
+  when extra/manual BoxSets overlap.
 - Caching: reuse `readRowCache` / `writeRowCache` from
   `components/homesections/sections/customRowsUtils.ts`. Key:
   `collectionIndex:<serverId>:<userId>`. TTL ~24h (franchise membership rarely
