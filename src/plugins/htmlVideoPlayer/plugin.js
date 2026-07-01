@@ -558,6 +558,18 @@ export class HtmlVideoPlayer {
     }
 
     setSecondarySubtitleStreamIndex(index) {
+        this.#secondarySubtitleTrackIndexToSetOnPlaying = index;
+
+        // Interleaved dual subtitles are drawn by the custom renderer, so if the
+        // primary track is currently rendered natively it must be re-rendered
+        const hasNativePrimaryTrack = Array.from(this.#mediaElement?.textTracks || [])
+            .some(track => track.label.includes('manualTrack') && track.mode !== 'disabled');
+        if (index !== -1 && this.#customTrackIndex >= 0 && hasNativePrimaryTrack) {
+            const primaryTrackIndex = this.#customTrackIndex;
+            this.setCurrentTrackElement(-1);
+            this.setCurrentTrackElement(primaryTrackIndex);
+        }
+
         this.setCurrentTrackElement(index, SECONDARY_TEXT_TRACK_INDEX);
     }
 
@@ -740,6 +752,16 @@ export class HtmlVideoPlayer {
 
     isSecondaryTrack(textTrackIndex) {
         return textTrackIndex === SECONDARY_TEXT_TRACK_INDEX;
+    }
+
+    /**
+     * Dual subtitles are displayed by interleaving the lines of both tracks in a
+     * single custom element, so the custom renderer is required whenever a
+     * secondary subtitle track is active or queued.
+     */
+    isDualSubtitleModeActive() {
+        return (this.#customSecondaryTrackIndex ?? -1) >= 0
+            || (this.#secondarySubtitleTrackIndexToSetOnPlaying ?? -1) >= 0;
     }
 
     /**
@@ -1452,7 +1474,7 @@ export class HtmlVideoPlayer {
                 return;
             }
 
-            if (useCustomSubtitles(userSettings)) {
+            if (useCustomSubtitles(userSettings) || this.isDualSubtitleModeActive()) {
                 this.renderSubtitlesWithCustomElement(videoElement, track, item, targetTextTrackIndex);
                 return;
             }
@@ -1517,6 +1539,47 @@ export class HtmlVideoPlayer {
      * @private
      */
     updateSubtitleText(timeMs) {
+        // Dual subtitle mode: interleave the lines of both tracks in the primary
+        // element, alternating between primary and secondary lines
+        if (this.#currentTrackEvents && this.#currentSecondaryTrackEvents && this.#videoSubtitlesElem) {
+            const ticks = timeMs * 10000;
+            const findTrackEventText = (trackEvents) => {
+                for (const trackEvent of trackEvents) {
+                    if (trackEvent.StartPositionTicks <= ticks && trackEvent.EndPositionTicks >= ticks) {
+                        return trackEvent.Text;
+                    }
+                }
+            };
+
+            // The secondary element is unused in this mode
+            this.#videoSecondarySubtitlesElem?.classList.add('hide');
+
+            const primaryText = findTrackEventText(this.#currentTrackEvents);
+            const secondaryText = findTrackEventText(this.#currentSecondaryTrackEvents);
+
+            if (!primaryText && !secondaryText) {
+                this.#videoSubtitlesElem.classList.add('hide');
+                return;
+            }
+
+            const primaryLines = primaryText ? normalizeTrackEventText(primaryText, false).split('\n') : [];
+            const secondaryLines = secondaryText ? normalizeTrackEventText(secondaryText, false).split('\n') : [];
+
+            const interleavedLines = [];
+            for (let i = 0; i < Math.max(primaryLines.length, secondaryLines.length); i++) {
+                if (primaryLines[i]) {
+                    interleavedLines.push(primaryLines[i]);
+                }
+                if (secondaryLines[i]) {
+                    interleavedLines.push(`<span class="videoSubtitleLineSecondary">${secondaryLines[i]}</span>`);
+                }
+            }
+
+            this.#videoSubtitlesElem.innerHTML = DOMPurify.sanitize(interleavedLines.join('<br>'));
+            this.#videoSubtitlesElem.classList.remove('hide');
+            return;
+        }
+
         const allTrackEvents = [this.#currentTrackEvents, this.#currentSecondaryTrackEvents];
         const subtitleTextElements = [this.#videoSubtitlesElem, this.#videoSecondarySubtitlesElem];
 

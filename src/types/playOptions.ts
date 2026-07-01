@@ -19,4 +19,6 @@ export interface PlayOptions {
     startPositionTicks?: number
     /** The index of the subtitle stream to play */
     subtitleStreamIndex?: number
+    /** The index of the secondary subtitle stream to play */
+    secondarySubtitleStreamIndex?: number
 }

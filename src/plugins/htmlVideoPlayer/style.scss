@@ -79,6 +79,11 @@ video[controls]::-webkit-media-controls {
     margin-bottom: 0.5em !important;
 }
 
+/* Secondary track lines in interleaved dual subtitle mode */
+.videoSubtitleLineSecondary {
+    color: #9e9e9e !important;
+}
+
 @keyframes htmlvideoplayer-zoomin {
     from {
         transform: scale3d(0.2, 0.2, 0.2);

@@ -78,7 +78,7 @@
 
                     <button is="emby-button" type="button" class="button-flat btnSplitVersions hide detailButton" title="${ButtonSplit}">
                         <div class="detailButton-content">
-                            <span class="material-icons detailButton-icon call_split" aria-hidden="true"></span>
+                            <span class="material-icons detailButton-icon arrow_split" aria-hidden="true"></span>
                         </div>
                     </button>
 
@@ -102,8 +102,23 @@
                         <div class="selectContainer selectAudioContainer hide trackSelectionFieldContainer flex-shrink-zero">
                             <select is="emby-select" class="selectAudio detailTrackSelect" label=""></select>
                         </div>
-                        <div class="selectContainer selectSubtitlesContainer hide trackSelectionFieldContainer flex-shrink-zero">
-                            <select is="emby-select" class="selectSubtitles detailTrackSelect" label=""></select>
+                        <div class="selectSubtitlesContainer hide trackSelectionFieldContainer flex-shrink-zero">
+                            <div class="flex align-items-center">
+                                <div class="selectContainer flex-grow">
+                                    <select is="emby-select" class="selectSubtitles detailTrackSelect" label=""></select>
+                                </div>
+                                <button is="paper-icon-button-light" type="button" class="btnToggleSecondarySubtitles hide flex-shrink-zero emby-select-iconbutton" title="${SecondarySubtitles}">
+                                    <!-- 'arrow_split' from Material Symbols (Apache 2.0), which is not included in the bundled Material Icons font -->
+                                    <span class="material-icons" aria-hidden="true">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" style="width: 1em; height: 1em; display: block;">
+                                            <path d="M160-440v-80h304l200-200H560v-80h240v240h-80v-104L496-440H160Zm400 280v-80h104L536-366l58-58 126 128v-104h80v240H560Z" />
+                                        </svg>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="selectContainer selectSecondarySubtitlesContainer hide trackSelectionFieldContainer flex-shrink-zero">
+                            <select is="emby-select" class="selectSecondarySubtitles detailTrackSelect" label=""></select>
                         </div>
                     </form>
 

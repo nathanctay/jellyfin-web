@@ -657,6 +657,7 @@ function truncatePlayOptions(playOptions) {
         mediaSourceId: playOptions.mediaSourceId,
         audioStreamIndex: playOptions.audioStreamIndex,
         subtitleStreamIndex: playOptions.subtitleStreamIndex,
+        secondarySubtitleStreamIndex: playOptions.secondarySubtitleStreamIndex,
         startPositionTicks: playOptions.startPositionTicks
     };
 }
@@ -2661,6 +2662,7 @@ export class PlaybackManager {
 
                 const audioStreamIndex = playOptions.audioStreamIndex;
                 const subtitleStreamIndex = playOptions.subtitleStreamIndex;
+                const secondarySubtitleStreamIndex = playOptions.secondarySubtitleStreamIndex;
                 const options = {
                     aspectRatio: playOptions.aspectRatio,
                     maxBitrate,
@@ -2668,6 +2670,7 @@ export class PlaybackManager {
                     isPlayback: null,
                     audioStreamIndex,
                     subtitleStreamIndex,
+                    secondarySubtitleStreamIndex,
                     startIndex: playOptions.startIndex,
                     enableDirectPlay: null,
                     enableDirectStream: null,
@@ -2700,8 +2703,11 @@ export class PlaybackManager {
                 }
 
                 return getPlaybackMediaSource(player, apiClient, deviceProfile, item, mediaSourceId, options).then(async (mediaSource) => {
-                    if (trackOptions.DefaultSecondarySubtitleStreamIndex != null) {
-                        mediaSource.DefaultSecondarySubtitleStreamIndex = trackOptions.DefaultSecondarySubtitleStreamIndex;
+                    // The server doesn't know about secondary subtitles, so apply the requested
+                    // index to the media source client-side (remembered selections take precedence)
+                    const requestedSecondarySubtitleStreamIndex = trackOptions.DefaultSecondarySubtitleStreamIndex ?? options.secondarySubtitleStreamIndex;
+                    if (requestedSecondarySubtitleStreamIndex != null) {
+                        mediaSource.DefaultSecondarySubtitleStreamIndex = parseInt(requestedSecondarySubtitleStreamIndex, 10);
                     }
 
                     if (mediaSource.DefaultSubtitleStreamIndex == null || mediaSource.DefaultSubtitleStreamIndex < 0) {

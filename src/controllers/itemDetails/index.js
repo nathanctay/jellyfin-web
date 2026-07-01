@@ -46,6 +46,7 @@ import { OutboundWebSocketMessageType } from '@jellyfin/sdk/lib/websocket';
 import 'elements/emby-itemscontainer/emby-itemscontainer';
 import 'elements/emby-checkbox/emby-checkbox';
 import 'elements/emby-button/emby-button';
+import 'elements/emby-button/paper-icon-button-light';
 import 'elements/emby-playstatebutton/emby-playstatebutton';
 import 'elements/emby-ratingbutton/emby-ratingbutton';
 import 'elements/emby-scroller/emby-scroller';
@@ -204,6 +205,7 @@ function renderTrackSelections(page, instance, item, forceReload) {
         page.querySelector('.selectVideo').innerHTML = '';
         page.querySelector('.selectAudio').innerHTML = '';
         page.querySelector('.selectSubtitles').innerHTML = '';
+        page.querySelector('.selectSecondarySubtitles').innerHTML = '';
         return;
     }
 
@@ -296,6 +298,17 @@ function renderAudioSelections(page, mediaSources) {
     }
 }
 
+/**
+ * Mirrors playbackManager.trackHasSecondarySubtitleSupport, which cannot be
+ * used before playback starts because it requires an active player.
+ * Only external non-ASS/SSA text subtitles can be paired as dual subtitles.
+ */
+function trackSupportsSecondarySubtitles(track) {
+    const format = (track.Codec || '').toLowerCase();
+    const deliveryMethod = track.DeliveryMethod || (track.IsExternal ? 'External' : 'Embed');
+    return format !== 'ssa' && format !== 'ass' && deliveryMethod === 'External';
+}
+
 function renderSubtitleSelections(page, mediaSources) {
     const mediaSource = getSelectedMediaSource(page, mediaSources);
 
@@ -323,6 +336,43 @@ function renderSubtitleSelections(page, mediaSources) {
         page.querySelector('.selectSubtitlesContainer').classList.remove('hide');
     } else {
         page.querySelector('.selectSubtitlesContainer').classList.add('hide');
+    }
+
+    renderSecondarySubtitleSelections(page, tracks);
+}
+
+function renderSecondarySubtitleSelections(page, tracks) {
+    const secondaryTracks = tracks.filter(trackSupportsSecondarySubtitles);
+    const toggleButton = page.querySelector('.btnToggleSecondarySubtitles');
+    const select = page.querySelector('.selectSecondarySubtitles');
+    select.setLabel(globalize.translate('SecondarySubtitles'));
+
+    select.innerHTML = '<option value="-1" selected>' + globalize.translate('Off') + '</option>' + secondaryTracks.map(function (v) {
+        return '<option value="' + v.Index + '">' + v.DisplayTitle + '</option>';
+    }).join('');
+
+    // Dual subtitles need at least two pairable tracks
+    if (secondaryTracks.length > 1) {
+        toggleButton.classList.remove('hide');
+    } else {
+        toggleButton.classList.add('hide');
+    }
+
+    // Reset toggle state whenever the track list is rebuilt (e.g. version change)
+    toggleButton.classList.remove('buttonActive');
+    page.querySelector('.selectSecondarySubtitlesContainer').classList.add('hide');
+}
+
+function toggleSecondarySubtitles(page) {
+    const toggleButton = page.querySelector('.btnToggleSecondarySubtitles');
+    const container = page.querySelector('.selectSecondarySubtitlesContainer');
+    const enabled = toggleButton.classList.toggle('buttonActive');
+
+    if (enabled) {
+        container.classList.remove('hide');
+    } else {
+        container.classList.add('hide');
+        page.querySelector('.selectSecondarySubtitles').value = '-1';
     }
 }
 
@@ -1944,12 +1994,21 @@ export default function (view, params) {
 
     function getPlayOptions(startPosition) {
         const audioStreamIndex = view.querySelector('.selectAudio').value || null;
-        return {
+        const playOptions = {
             startPositionTicks: startPosition,
             mediaSourceId: view.querySelector('.selectSource').value,
             audioStreamIndex: audioStreamIndex,
             subtitleStreamIndex: view.querySelector('.selectSubtitles').value
         };
+
+        const secondarySubtitlesEnabled = view.querySelector('.btnToggleSecondarySubtitles').classList.contains('buttonActive');
+        const secondarySubtitleStreamIndex = view.querySelector('.selectSecondarySubtitles').value;
+        if (secondarySubtitlesEnabled && secondarySubtitleStreamIndex !== '-1'
+            && secondarySubtitleStreamIndex !== playOptions.subtitleStreamIndex) {
+            playOptions.secondarySubtitleStreamIndex = secondarySubtitleStreamIndex;
+        }
+
+        return playOptions;
     }
 
     function playItem(item, startPosition) {
@@ -2097,6 +2156,9 @@ export default function (view, params) {
         bindAll(view, '.btnCancelTimer', 'click', onCancelTimerClick);
         bindAll(view, '.btnDownload', 'click', onDownloadClick);
         view.querySelector('.trackSelections').addEventListener('submit', onTrackSelectionsSubmit);
+        view.querySelector('.btnToggleSecondarySubtitles').addEventListener('click', function () {
+            toggleSecondarySubtitles(view);
+        });
         view.querySelector('.btnSplitVersions').addEventListener('click', function () {
             splitVersions(self, view, apiClient, params);
         });
