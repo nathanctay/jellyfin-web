@@ -267,7 +267,7 @@ function CarouselSlideContent({
         apiClient.getScaledImageUrl(item.Id, { type: 'Logo', tag: logoTag, maxHeight: 280 }) :
         null;
     const favoriteLabel = globalize.translate(isFavorite ? 'Favorite' : 'AddToFavorites');
-    const moreLabel = globalize.translate('More');
+    const moreLabel = globalize.translate('ButtonMore');
 
     return (
         <div className='homeCarouselContainer'>

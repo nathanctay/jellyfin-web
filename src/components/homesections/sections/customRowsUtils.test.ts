@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     cachedFetch,
     dedupeInflight,
+    DEFAULT_FEATURED_ROW_LABEL,
     filterSupportedSections,
+    getFeaturedRowLabel,
     getUpcomingCardHtml,
+    groupFeaturedItemsByLabel,
     isPortraitViewMode,
     matchCollectionsByName,
+    pickSlidingWindow,
     readRowCache,
     writeRowCache
 } from './customRowsUtils';
@@ -79,6 +83,62 @@ describe('matchCollectionsByName', () => {
 
     it('returns empty for empty config', () => {
         expect(matchCollectionsByName(collections, [])).toEqual([]);
+    });
+});
+
+describe('getFeaturedRowLabel', () => {
+    it('defaults to Featured when tags are missing or empty', () => {
+        expect(getFeaturedRowLabel(undefined)).toBe(DEFAULT_FEATURED_ROW_LABEL);
+        expect(getFeaturedRowLabel(null)).toBe(DEFAULT_FEATURED_ROW_LABEL);
+        expect(getFeaturedRowLabel([])).toBe(DEFAULT_FEATURED_ROW_LABEL);
+        expect(getFeaturedRowLabel(['FeaturedRow'])).toBe(DEFAULT_FEATURED_ROW_LABEL);
+    });
+
+    it('uses the row: label when present', () => {
+        expect(getFeaturedRowLabel(['FeaturedRow', 'row:Staff Picks'])).toBe('Staff Picks');
+    });
+
+    it('trims whitespace and ignores an empty row: tag', () => {
+        expect(getFeaturedRowLabel(['row:  Halloween  '])).toBe('Halloween');
+        expect(getFeaturedRowLabel(['row:', 'FeaturedRow'])).toBe(DEFAULT_FEATURED_ROW_LABEL);
+        expect(getFeaturedRowLabel(['row:   '])).toBe(DEFAULT_FEATURED_ROW_LABEL);
+    });
+});
+
+describe('groupFeaturedItemsByLabel', () => {
+    it('groups items by row label and defaults unlabeled items to Featured', () => {
+        const items = [
+            { Id: '1', Tags: ['FeaturedRow'] },
+            { Id: '2', Tags: ['FeaturedRow', 'row:Staff Picks'] },
+            { Id: '3', Tags: ['FeaturedRow', 'row:Staff Picks'] },
+            { Id: '4', Tags: ['FeaturedRow', 'row:Halloween'] }
+        ];
+        const grouped = groupFeaturedItemsByLabel(items);
+        expect([...grouped.keys()]).toEqual(['Featured', 'Staff Picks', 'Halloween']);
+        expect(grouped.get('Featured')?.map((i) => i.Id)).toEqual(['1']);
+        expect(grouped.get('Staff Picks')?.map((i) => i.Id)).toEqual(['2', '3']);
+        expect(grouped.get('Halloween')?.map((i) => i.Id)).toEqual(['4']);
+    });
+});
+
+describe('pickSlidingWindow', () => {
+    it('returns the full array when it fits in the window', () => {
+        expect(pickSlidingWindow(['a', 'b'], 4)).toEqual(['a', 'b']);
+    });
+
+    it('slides the window by day when there are more items than the count', () => {
+        vi.useFakeTimers();
+        try {
+            // Day 0 from epoch: start at index 0
+            vi.setSystemTime(new Date(0));
+            expect(pickSlidingWindow(['a', 'b', 'c', 'd', 'e'], 3)).toEqual(['a', 'b', 'c']);
+
+            // Advance one day: start at index 1
+            vi.setSystemTime(new Date(24 * 60 * 60 * 1000));
+            expect(pickSlidingWindow(['a', 'b', 'c', 'd', 'e'], 3)).toEqual(['b', 'c', 'd']);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 

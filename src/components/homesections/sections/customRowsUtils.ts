@@ -113,6 +113,45 @@ export function matchCollectionsByName<T extends { Name?: string | null }>(
     return matched;
 }
 
+export const FEATURED_ROW_TAG = 'FeaturedRow';
+export const FEATURED_ROW_LABEL_PREFIX = 'row:';
+export const DEFAULT_FEATURED_ROW_LABEL = 'Featured';
+
+export function getFeaturedRowLabel(tags: string[] | null | undefined): string {
+    if (!tags || !tags.length) return DEFAULT_FEATURED_ROW_LABEL;
+    const rowTag = tags.find((t) => t.startsWith(FEATURED_ROW_LABEL_PREFIX));
+    if (rowTag) {
+        const label = rowTag.slice(FEATURED_ROW_LABEL_PREFIX.length).trim();
+        if (label) return label;
+    }
+    return DEFAULT_FEATURED_ROW_LABEL;
+}
+
+export function groupFeaturedItemsByLabel<T extends { Tags?: string[] | null }>(
+    items: T[]
+): Map<string, T[]> {
+    const byLabel = new Map<string, T[]>();
+    items.forEach((item) => {
+        const label = getFeaturedRowLabel(item.Tags);
+        let list = byLabel.get(label);
+        if (!list) {
+            list = [];
+            byLabel.set(label, list);
+        }
+        list.push(item);
+    });
+    return byLabel;
+}
+
+// Rotates which subset of rows is shown day-by-day when there are more labels
+// than MAX_FEATURED_ROWS, so the home screen stays fresh without admin churn.
+export function pickSlidingWindow<T>(arr: T[], count: number): T[] {
+    if (arr.length <= count) return arr;
+    const day = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+    const start = day % (arr.length - count + 1);
+    return arr.slice(start, start + count);
+}
+
 export function getUpcomingCardHtml(
     item: BaseItemDto,
     serverAddress: string,

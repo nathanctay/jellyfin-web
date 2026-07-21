@@ -8,6 +8,7 @@ import { queryClient } from 'utils/query/queryClient';
 
 import { loadRecordings } from './sections/activeRecordings';
 import { loadCollectionRows } from './sections/collectionRows';
+import { loadFeaturedRows } from './sections/featuredRows';
 import { loadLibraryButtons } from './sections/libraryButtons';
 import { loadLibraryTiles } from './sections/libraryTiles';
 import { loadLiveTV } from './sections/liveTv';
@@ -84,11 +85,13 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 // Custom rows are intentionally not awaited: the plugin's section list
                 // and external integrations can be slow, and native sections must never
                 // wait on them. Each custom row resumes itself once its DOM exists.
-                // Pre-created mounts keep the group order stable (collections above
-                // plugin rows) no matter which response arrives first.
+                // Pre-created mounts keep the group order stable (featured tag rows,
+                // then collections, then plugin rows) no matter which response arrives first.
                 const customRowOptions = { enableOverflow: enableScrollX() };
+                const featuredRowsMount = document.createElement('div');
                 const collectionRowsMount = document.createElement('div');
                 const pluginSectionsMount = document.createElement('div');
+                elem.appendChild(featuredRowsMount);
                 elem.appendChild(collectionRowsMount);
                 elem.appendChild(pluginSectionsMount);
 
@@ -102,9 +105,10 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 if (resumeSection) {
                     elem.insertBefore(myRequestsMount, resumeSection.nextSibling);
                 } else {
-                    elem.insertBefore(myRequestsMount, collectionRowsMount);
+                    elem.insertBefore(myRequestsMount, featuredRowsMount);
                 }
 
+                loadFeaturedRows(featuredRowsMount, apiClient, user, customRowOptions);
                 loadCollectionRows(collectionRowsMount, apiClient, user, customRowOptions);
                 loadPluginSections(pluginSectionsMount, apiClient, user, customRowOptions, (info) => (
                     info.Section === 'MyJellyseerrRequests' ? myRequestsMount : pluginSectionsMount
