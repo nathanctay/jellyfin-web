@@ -34,7 +34,9 @@
     width: 100%;
     height: 80vh;
     min-height: 360px;
-    max-height: 780px;
+    // Taller cap on large displays: when 80vh exceeds this, a higher max shows more
+    // of the backdrop under cover (less top/bottom crop) without side letterboxing.
+    max-height: 1080px;
     overflow: hidden;
     background: #000;
 
