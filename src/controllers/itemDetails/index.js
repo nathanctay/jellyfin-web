@@ -41,6 +41,7 @@ import Dashboard from 'utils/dashboard';
 import Events from 'utils/events';
 import { getItemBackdropImageUrl } from 'utils/jellyfin-apiclient/backdropImage';
 import { toApi } from 'utils/jellyfin-apiclient/compat';
+import { getSubtitleTrackLabel } from 'utils/subtitleTrack';
 import { OutboundWebSocketMessageType } from '@jellyfin/sdk/lib/websocket';
 
 import 'elements/emby-itemscontainer/emby-itemscontainer';
@@ -323,7 +324,7 @@ function renderSubtitleSelections(page, mediaSources) {
     let selected = selectedId === -1 ? ' selected' : '';
     select.innerHTML = '<option value="-1">' + globalize.translate('Off') + '</option>' + tracks.map(function (v) {
         selected = v.Index === selectedId ? ' selected' : '';
-        return '<option value="' + v.Index + '" ' + selected + '>' + v.DisplayTitle + '</option>';
+        return '<option value="' + v.Index + '" ' + selected + '>' + escapeHtml(getSubtitleTrackLabel(v)) + '</option>';
     }).join('');
 
     if (tracks.length > 0) {
@@ -348,7 +349,7 @@ function renderSecondarySubtitleSelections(page, tracks) {
     select.setLabel(globalize.translate('SecondarySubtitles'));
 
     select.innerHTML = '<option value="-1" selected>' + globalize.translate('Off') + '</option>' + secondaryTracks.map(function (v) {
-        return '<option value="' + v.Index + '">' + v.DisplayTitle + '</option>';
+        return '<option value="' + v.Index + '">' + escapeHtml(getSubtitleTrackLabel(v)) + '</option>';
     }).join('');
 
     // Dual subtitles need at least two pairable tracks

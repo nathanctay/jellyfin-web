@@ -11,6 +11,7 @@ import listView from '../listview/listview';
 import imageLoader from '../images/imageLoader';
 import { playbackManager } from '../playback/playbackmanager';
 import Events from '../../utils/events.ts';
+import { getSubtitleTrackLabel } from '../../utils/subtitleTrack';
 import { appHost } from '../apphost';
 import globalize from '../../lib/globalize';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
@@ -64,7 +65,7 @@ function showSubtitleMenu(context, player, button) {
     const streams = playbackManager.subtitleTracks(player);
     const menuItems = streams.map(function (s) {
         const menuItem = {
-            name: s.DisplayTitle,
+            name: getSubtitleTrackLabel(s),
             id: s.Index
         };
 

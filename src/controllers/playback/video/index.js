@@ -16,6 +16,7 @@ import itemHelper from '../../../components/itemHelper';
 import mediaInfo from '../../../components/mediainfo/mediainfo';
 import focusManager from '../../../components/focusManager';
 import Events from '../../../utils/events.ts';
+import { getSubtitleTrackLabel } from '../../../utils/subtitleTrack';
 import globalize from '../../../lib/globalize';
 import { appHost } from '../../../components/apphost';
 import layoutManager from '../../../components/layoutManager';
@@ -1070,7 +1071,7 @@ export default function (view) {
 
         const menuItems = streams.map(function (stream) {
             const opt = {
-                name: stream.DisplayTitle,
+                name: getSubtitleTrackLabel(stream),
                 id: stream.Index
             };
 
@@ -1116,7 +1117,7 @@ export default function (view) {
         });
         const menuItems = streams.map(function (stream) {
             const opt = {
-                name: stream.DisplayTitle,
+                name: getSubtitleTrackLabel(stream),
                 id: stream.Index
             };
 
