@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jellyfin 3D Store</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b0b0d; /* Dark theme default */
+            color: #f4f1ea;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            touch-action: none;
+        }
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(12, 12, 14, 0.8);
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        #hud.show {
+            display: block;
+        }
+        #loading-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #0b0b0d;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-left-color: #4ade80;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h3 id="loading-text">Loading shelves...</h3>
+    </div>
+    
+    <div id="hud">
+        <h2 id="hud-title">Title</h2>
+        <button id="hud-play">Play</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from './vendor/three.module.min.js';
+
+        // 1. Handshake Logic
+        let jfToken = null;
+        let jfServer = null;
+        let jfUserId = null;
+
+        // Tell the parent we are ready to receive the auth token
+        parent.postMessage({ type: 'READY' }, '*');
+
+        window.addEventListener('message', (event) => {
+            // In a real prod setup, validate event.origin here.
+            // For now we accept the token.
+            if (event.data && event.data.type === 'AUTH') {
+                jfToken = event.data.payload.token;
+                jfServer = event.data.payload.serverUrl;
+                jfUserId = event.data.payload.userId;
+                console.log("3D Store received AUTH. Token:", jfToken ? "Present" : "Missing", "Server:", jfServer, "User:", jfUserId);
+                init3D();
+            } else if (event.data && event.data.type === 'SEERR_DATA') {
+                console.log("Received Seerr Data", event.data.payload);
+            }
+        });
+
+        // 2. Three.js Setup (Triggered after Auth)
+        let cleanup3D = () => {};
+        
+        // HUD Elements
+        const hud = document.getElementById('hud');
+        const hudTitle = document.getElementById('hud-title');
+        const hudPlay = document.getElementById('hud-play');
+        const loadingScreen = document.getElementById('loading-screen');
+        let selectedItem = null;
+
+        async function init3D() {
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0b0d);
+
+            // Move camera back slightly to see multiple shelves
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2.5, 6);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            const interactableMeshes = [];
+
+            // Helper to fetch images
+            async function loadTexture(itemId) {
+                try {
+                    const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=400&quality=80`;
+                    const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
+                    if (!imgRes.ok) return null;
+                    const blob = await imgRes.blob();
+                    const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+                    const tex = new THREE.Texture(bmp);
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    tex.needsUpdate = true;
+                    return tex;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            // Helper to build a shelf
+            async function buildShelf(title, endpoint, yPos) {
+                try {
+                    const res = await fetch(`${jfServer}${endpoint}`, { headers: { 'X-Emby-Token': jfToken } });
+                    const data = await res.json();
+                    const items = data.Items || data || [];
+                    if (!items.length) return;
+
+                    const caseCount = Math.min(items.length, 20);
+                    const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.2);
+                    const solidMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
+                    
+                    // We need separate materials for each instance to have different textures
+                    // Three.js InstancedMesh doesn't support different textures per instance easily without texture atlases or NodeMaterial.
+                    // Since it's <60 items total, we will use a Group of individual Meshes for now, which is still very fast.
+                    const shelfGroup = new THREE.Group();
+                    shelfGroup.position.y = yPos;
+                    
+                    // Physical Shelf Plank
+                    const shelfPlankGeo = new THREE.BoxGeometry(caseCount * 1.2, 0.1, 0.8);
+                    const shelfPlankMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1f, roughness: 0.9 });
+                    const shelfPlank = new THREE.Mesh(shelfPlankGeo, shelfPlankMat);
+                    shelfPlank.position.set(0, -0.75, -0.1);
+                    shelfGroup.add(shelfPlank);
+
+                    for (let i = 0; i < caseCount; i++) {
+                        const item = items[i];
+                        const tex = await loadTexture(item.Id);
+                        const frontMat = tex 
+                            ? new THREE.MeshStandardMaterial({ map: tex, roughness: 0.2 })
+                            : new THREE.MeshStandardMaterial({ color: 0x4ade80 });
+                        
+                        const caseMesh = new THREE.Mesh(caseGeo, [solidMat, solidMat, solidMat, solidMat, frontMat, solidMat]);
+                        caseMesh.position.set((i - caseCount / 2) * 1.2, 0, 0);
+                        caseMesh.rotation.x = -0.1;
+                        caseMesh.rotation.y = (Math.random() - 0.5) * 0.1;
+                        
+                        // Store metadata for raycasting
+                        caseMesh.userData = { id: item.Id, name: item.Name, type: item.Type };
+                        shelfGroup.add(caseMesh);
+                        interactableMeshes.push(caseMesh);
+                    }
+                    scene.add(shelfGroup);
+                } catch (err) {
+                    console.error("Failed to build shelf for endpoint", endpoint, err);
+                }
+            }
+
+            // Build 3 shelves and wait for all to finish
+            await Promise.all([
+                buildShelf("Latest Movies", `/Users/${jfUserId}/Items/Latest?IncludeItemTypes=Movie&Limit=20`, 4),
+                buildShelf("Continue Watching", `/Users/${jfUserId}/Items/Resume?Limit=20`, 2),
+                buildShelf("My Requests", `/HomeScreen/Section/MyJellyseerrRequests?userId=${jfUserId}`, 0)
+            ]);
+
+            // Hide loading screen once all data is bound and meshes created
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.style.display = 'none', 500);
+
+            // --- Rail Navigation ---
+            let targetCameraX = 0;
+            let currentCameraX = 0;
+            const minX = -10;
+            const maxX = 10;
+
+            window.addEventListener('wheel', (e) => {
+                targetCameraX += e.deltaY * 0.01;
+                targetCameraX = Math.max(minX, Math.min(maxX, targetCameraX));
+            });
+
+            let touchStartX = 0;
+            window.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+            }, { passive: true });
+            
+            window.addEventListener('touchmove', (e) => {
+                const deltaX = touchStartX - e.touches[0].clientX;
+                targetCameraX += deltaX * 0.02;
+                targetCameraX = Math.max(minX, Math.min(maxX, targetCameraX));
+                touchStartX = e.touches[0].clientX;
+            }, { passive: true });
+
+            // --- State Machine & Inspection ---
+            const STATE = { BROWSE: 0, INSPECT: 1 };
+            let currentState = STATE.BROWSE;
+            let inspectedMesh = null;
+            let originalPosition = new THREE.Vector3();
+            let originalRotation = new THREE.Euler();
+
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let hoveredMesh = null;
+
+            // Inspect Dragging & Click Logic
+            let isDragging = false;
+            let dragDistance = 0;
+            let previousMousePosition = { x: 0, y: 0 };
+            let targetRotationY = 0;
+            
+            window.addEventListener('mousedown', (e) => {
+                if (currentState === STATE.INSPECT) {
+                    isDragging = true;
+                    dragDistance = 0;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                    if (inspectedMesh) targetRotationY = inspectedMesh.rotation.y;
+                    document.body.style.cursor = 'grabbing';
+                }
+            });
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+                if (currentState === STATE.INSPECT) {
+                    document.body.style.cursor = 'grab';
+                    // Snap to nearest half-turn (front or back)
+                    if (inspectedMesh) {
+                        const halfTurns = Math.round(targetRotationY / Math.PI);
+                        targetRotationY = halfTurns * Math.PI;
+                    }
+                }
+            });
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                if (currentState === STATE.INSPECT && isDragging && inspectedMesh) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    dragDistance += Math.abs(deltaX);
+                    targetRotationY += deltaX * 0.01;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+            
+            // Touch inspect dragging
+            window.addEventListener('touchstart', (e) => {
+                if (currentState === STATE.INSPECT) {
+                    isDragging = true;
+                    dragDistance = 0;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    if (inspectedMesh) targetRotationY = inspectedMesh.rotation.y;
+                }
+            }, { passive: true });
+            
+            window.addEventListener('touchmove', (e) => {
+                if (currentState === STATE.INSPECT && isDragging && inspectedMesh) {
+                    const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                    dragDistance += Math.abs(deltaX);
+                    targetRotationY += deltaX * 0.01;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchend', () => {
+                isDragging = false;
+                if (currentState === STATE.INSPECT && inspectedMesh) {
+                    const halfTurns = Math.round(targetRotationY / Math.PI);
+                    targetRotationY = halfTurns * Math.PI;
+                }
+            });
+
+            window.addEventListener('click', (e) => {
+                if (currentState === STATE.BROWSE) {
+                    if (hoveredMesh && hoveredMesh.userData) {
+                        currentState = STATE.INSPECT;
+                        inspectedMesh = hoveredMesh;
+                        originalPosition.copy(inspectedMesh.position);
+                        originalRotation.copy(inspectedMesh.rotation);
+
+                        const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.2, camera.position.z - 2);
+                        inspectedMesh.parent.worldToLocal(targetWorldPos);
+                        
+                        inspectedMesh.position.copy(targetWorldPos);
+                        inspectedMesh.rotation.set(0, 0, 0);
+                        targetRotationY = 0; // Reset target rotation
+
+                        selectedItem = inspectedMesh.userData;
+                        hudTitle.innerText = selectedItem.name;
+                        hud.classList.add('show');
+                        document.body.style.cursor = 'grab';
+                    }
+                } else if (currentState === STATE.INSPECT) {
+                    if (dragDistance > 10) return;
+                    
+                    currentState = STATE.BROWSE;
+                    inspectedMesh.position.copy(originalPosition);
+                    inspectedMesh.rotation.copy(originalRotation);
+                    inspectedMesh = null;
+                    selectedItem = null;
+                    hud.classList.remove('show');
+                    document.body.style.cursor = 'default';
+                }
+            });
+
+            hudPlay.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (selectedItem) {
+                    parent.postMessage({ type: 'OPEN_DETAILS', payload: { itemId: selectedItem.id } }, '*');
+                }
+            });
+
+            let rafId;
+            function animate() {
+                rafId = requestAnimationFrame(animate);
+
+                if (currentState === STATE.BROWSE) {
+                    currentCameraX += (targetCameraX - currentCameraX) * 0.1;
+                    camera.position.x = currentCameraX;
+
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObjects(interactableMeshes);
+                    
+                    if (intersects.length > 0) {
+                        const hit = intersects[0].object;
+                        if (hoveredMesh !== hit) {
+                            if (hoveredMesh) hoveredMesh.position.z = 0;
+                            hoveredMesh = hit;
+                            hoveredMesh.position.z = 0.2;
+                            document.body.style.cursor = 'pointer';
+                        }
+                    } else if (hoveredMesh !== null) {
+                        hoveredMesh.position.z = 0;
+                        hoveredMesh = null;
+                        document.body.style.cursor = 'default';
+                    }
+                } else if (currentState === STATE.INSPECT && inspectedMesh) {
+                    const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.2, camera.position.z - 2);
+                    inspectedMesh.parent.worldToLocal(targetWorldPos);
+                    inspectedMesh.position.x = targetWorldPos.x;
+
+                    // Smoothly interpolate rotation to target
+                    inspectedMesh.rotation.y += (targetRotationY - inspectedMesh.rotation.y) * 0.1;
+                }
+
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            const onResize = () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            };
+            window.addEventListener('resize', onResize);
+
+            cleanup3D = () => {
+                cancelAnimationFrame(rafId);
+                window.removeEventListener('resize', onResize);
+                scene.traverse((o) => {
+                    if (o.isMesh) {
+                        o.geometry.dispose();
+                        if (Array.isArray(o.material)) {
+                            o.material.forEach(m => { m.map?.dispose(); m.dispose(); });
+                        } else {
+                            o.material.map?.dispose();
+                            o.material.dispose();
+                        }
+                    }
+                });
+                renderer.dispose();
+                renderer.forceContextLoss();
+                document.body.removeChild(renderer.domElement);
+            };
+        }
+
+        window.addEventListener('unload', () => {
+            cleanup3D();
+        });
+    </script>
+</body>
+</html>

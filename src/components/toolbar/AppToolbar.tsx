@@ -5,6 +5,7 @@ import IconButton from '@mui/material/IconButton';
 import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import React, { type FC, type PropsWithChildren, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { appRouter } from 'components/router/appRouter';
 import { useApi } from 'hooks/useApi';
@@ -38,6 +39,7 @@ const AppToolbar: FC<PropsWithChildren<AppToolbarProps>> = ({
     isUserMenuAvailable = true
 }) => {
     const { user } = useApi();
+    const navigate = useNavigate();
     const isUserLoggedIn = Boolean(user);
 
     return (
@@ -83,6 +85,21 @@ const AppToolbar: FC<PropsWithChildren<AppToolbarProps>> = ({
                         onClick={onBackButtonClick}
                     >
                         <ArrowBack />
+                    </IconButton>
+                </Tooltip>
+            )}
+
+            {isUserLoggedIn && (
+                <Tooltip title="Virtual Store">
+                    <IconButton
+                        size='large'
+                        color='inherit'
+                        aria-label="Virtual Store"
+                        onClick={() => {
+                            navigate('/virtual-store');
+                        }}
+                    >
+                        <span className="material-icons store" aria-hidden="true"></span>
                     </IconButton>
                 </Tooltip>
             )}
