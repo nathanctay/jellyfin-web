@@ -16,8 +16,7 @@
         #hud {
             position: absolute;
             bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 40px;
             z-index: 20;
             background: #4b0082; /* Purple */
             border: 4px solid #FDDA0D; /* Yellow */
@@ -317,7 +316,7 @@
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
 
             // Raised ceiling slightly to give the exit sign more breathing room
-            const wallsGeo = new THREE.BoxGeometry(50, 17.2, 65);
+            const wallsGeo = new THREE.BoxGeometry(60, 17.2, 65);
             const walls = new THREE.Mesh(wallsGeo, roomMats);
             walls.position.set(0, 7.1, 0);
             scene.add(walls);
@@ -476,9 +475,35 @@
 
                 if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
 
-                // Background
+                // Base Background
                 ctx.fillStyle = palette.bg;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Blockbuster-style Top Header Bar
+                ctx.fillStyle = '#0000aa'; // Blue bar
+                ctx.fillRect(0, 0, canvas.width, 40);
+                ctx.fillStyle = '#ffcc00'; // Yellow text
+                ctx.font = 'bold 20px "Arial Black", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('GUARANTEED TO BE THERE', canvas.width / 2, 28);
+
+                // MPAA Rating Box (Top Right)
+                const rating = item.OfficialRating || 'NR';
+                ctx.font = 'bold 22px "Arial Black", sans-serif';
+                // Measure the text and pad it nicely
+                const ratingWidth = Math.max(52, ctx.measureText(rating).width + 20);
+                const boxRight = canvas.width - 30; // 30px margin from right
+                const boxLeft = boxRight - ratingWidth;
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(boxLeft - 4, 60, ratingWidth + 8, 45);
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxLeft, 64, ratingWidth, 37);
+                
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                ctx.fillText(rating, boxLeft + ratingWidth / 2, 93);
 
                 // Title
                 ctx.fillStyle = palette.text;
@@ -513,14 +538,14 @@
                     return currentY + lineHeight;
                 }
 
-                let yPos = 80; // Moved up since top bar is gone
-                yPos = wrapText(ctx, item.Name || 'Unknown Title', 30, yPos, canvas.width - 60, 50, 3);
+                let yPos = 100; // Below header
+                // Title wraps but avoids the rating box!
+                yPos = wrapText(ctx, item.Name || 'Unknown Title', 30, yPos, canvas.width - 120, 50, 3);
 
                 // Meta info
                 ctx.font = '22px "Helvetica Neue", sans-serif';
                 ctx.fillStyle = palette.subtext;
                 const year = item.ProductionYear || '----';
-                const rating = item.OfficialRating || 'NR';
                 let runtime = '';
                 if (item.RunTimeTicks) {
                     const mins = Math.floor(item.RunTimeTicks / 600000000);
@@ -529,16 +554,13 @@
                     runtime = h > 0 ? `${h}h ${m}m` : `${m}m`;
                 }
                 const genre = (item.Genres && item.Genres.length > 0) ? item.Genres[0] : '';
-                ctx.fillText(`${year}  ·  ${rating}  ·  ${runtime}  ${genre ? '·  ' + genre : ''}`, 30, yPos + 10);
-                yPos += 60;
+                ctx.fillText(`${year}  ·  ${runtime}  ${genre ? '·  ' + genre : ''}`, 30, yPos + 10);
+                yPos += 50;
 
                 // Divider
                 ctx.strokeStyle = palette.divider;
                 ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(30, yPos);
-                ctx.lineTo(canvas.width - 30, yPos);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(30, yPos); ctx.lineTo(canvas.width - 30, yPos); ctx.stroke();
                 yPos += 40;
 
                 // Synopsis Header
@@ -550,24 +572,49 @@
                 // Synopsis Body
                 ctx.fillStyle = palette.text;
                 ctx.font = '22px "Helvetica Neue", sans-serif';
-                yPos = wrapText(ctx, item.Overview || 'No synopsis available.', 30, yPos, canvas.width - 60, 32, 12); // Added more lines since we removed top bar
+                yPos = wrapText(ctx, item.Overview || 'No synopsis available.', 30, yPos, canvas.width - 60, 32, 10);
 
-                // Bottom Sticker
+                // --- Bottom Graphics ---
+                const bottomY = canvas.height - 100;
+
+                // 1. Procedural UPC Barcode (Bottom Left)
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(30, bottomY, 140, 70);
+                ctx.fillStyle = '#000000';
+                let currentX = 40;
+                for(let i=0; i<30; i++) {
+                    const barW = Math.random() > 0.6 ? 4 : 2; // Random thin/thick bars
+                    if (currentX + barW > 160) break;
+                    ctx.fillRect(currentX, bottomY + 10, barW, 40);
+                    currentX += barW + (Math.random() * 3 + 1);
+                }
+                ctx.font = 'bold 12px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('4  39120  48291  8', 100, bottomY + 65);
+
+                // 2. VHS / Hi-Fi Stereo Tech Logos (Bottom Center)
+                ctx.fillStyle = palette.subtext;
+                ctx.font = 'bold 18px "Arial", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('VHS', 230, bottomY + 30);
+                ctx.font = '12px "Arial", sans-serif';
+                ctx.fillText('Hi-Fi STEREO', 230, bottomY + 50);
+
+                // 3. Rental Sticker (Bottom Right)
                 ctx.fillStyle = '#111111';
-                ctx.roundRect(canvas.width - 200, canvas.height - 100, 170, 70, 10);
+                ctx.roundRect(canvas.width - 200, bottomY, 170, 70, 10);
                 ctx.fill();
                 ctx.strokeStyle = '#f5c518';
                 ctx.lineWidth = 2;
-                ctx.roundRect(canvas.width - 195, canvas.height - 95, 160, 60, 6);
+                ctx.roundRect(canvas.width - 195, bottomY + 5, 160, 60, 6);
                 ctx.stroke();
 
                 ctx.fillStyle = '#f5c518';
                 ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('RENTAL COPY', canvas.width - 115, canvas.height - 62);
+                ctx.fillText('RENTAL COPY', canvas.width - 115, bottomY + 38);
                 ctx.fillStyle = '#aaaaaa';
                 ctx.font = '12px "Helvetica Neue", sans-serif';
-                ctx.fillText('Please Rewind', canvas.width - 115, canvas.height - 44);
+                ctx.fillText('Please Rewind', canvas.width - 115, bottomY + 56);
 
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.colorSpace = THREE.SRGBColorSpace;
@@ -770,13 +817,13 @@
 
                     const posterPositions = [
                         // Front Wall (Z = 32.3, looking back into the room -> rotate Math.PI)
-                        { x: -21, z: 32.3, rotY: Math.PI }, // Shifted outwards to clear the door
-                        { x: -13, z: 32.3, rotY: Math.PI },
-                        { x: 13,  z: 32.3, rotY: Math.PI },
-                        { x: 21,  z: 32.3, rotY: Math.PI },
+                        { x: -25, z: 32.3, rotY: Math.PI }, // Shifted outwards to clear the door
+                        { x: -15, z: 32.3, rotY: Math.PI },
+                        { x: 15,  z: 32.3, rotY: Math.PI },
+                        { x: 25,  z: 32.3, rotY: Math.PI },
                         // Side Walls (By the front door)
-                        { x: -24.8, z: 27, rotY: Math.PI / 2 }, // Left Wall
-                        { x: 24.8,  z: 27, rotY: -Math.PI / 2 } // Right Wall
+                        { x: -29.8, z: 27, rotY: Math.PI / 2 }, // Left Wall
+                        { x: 29.8,  z: 27, rotY: -Math.PI / 2 } // Right Wall
                     ];
 
                     // Deterministically pick 6 movies
@@ -835,21 +882,21 @@
                 // We order these by proximity to the camera (Z=14) so the semaphore prioritizes the closest movies!
                 await Promise.all([
                     // Front Gondolas (Closest)
-                    buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies, categories[5].name, lists[11], categories[11].name),
-                    buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies, categories[8].name, lists[14], categories[14].name),
+                    buildGondola(lists[5], { x: -13, z: 12 }, 0, 14, true, 3, allMovies, categories[5].name, lists[11], categories[11].name),
+                    buildGondola(lists[8], { x: 13, z: 12 }, 0, 14, true, 3, allMovies, categories[8].name, lists[14], categories[14].name),
 
                     // Middle Gondolas
-                    buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies, categories[4].name, lists[10], categories[10].name),
-                    buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
+                    buildGondola(lists[4], { x: -13, z: -2 }, 0, 14, true, 3, allMovies, categories[4].name, lists[10], categories[10].name),
+                    buildGondola(lists[7], { x: 13, z: -2 }, 0, 14, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
 
                     // Back Gondolas
-                    buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies, categories[3].name, lists[9], categories[9].name),
-                    buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies, categories[6].name, lists[12], categories[12].name),
+                    buildGondola(lists[3], { x: -13, z: -16 }, 0, 14, true, 3, allMovies, categories[3].name, lists[9], categories[9].name),
+                    buildGondola(lists[6], { x: 13, z: -16 }, 0, 14, true, 3, allMovies, categories[6].name, lists[12], categories[12].name),
 
                     // Outer Walls
-                    buildGondola(lists[0], { x: -22, z: -5 }, Math.PI / 2, 50, false, 5, allMovies, categories[0].name), // Left Wall
-                    buildGondola(lists[1], { x: 22, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies, categories[1].name), // Right Wall
-                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies, categories[2].name) // Back Wall
+                    buildGondola(lists[0], { x: -27, z: -5 }, Math.PI / 2, 50, false, 5, allMovies, categories[0].name), // Left Wall
+                    buildGondola(lists[1], { x: 27, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies, categories[1].name), // Right Wall
+                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 50, false, 5, allMovies, categories[2].name) // Back Wall
                 ]);
 
                 // Build posters AFTER all gondolas finish loading so it doesn't steal network bandwidth!
