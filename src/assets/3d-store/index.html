@@ -150,9 +150,7 @@
             scene.add(ambientLight);
 
             const overheadLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            // Placed high up and off to the right, pointing at the origin.
-            // This ensures the glossy specular reflections bounce off to the left, missing the camera!
-            overheadLight.position.set(10, 15, 5);
+            overheadLight.position.set(0, 8, 3);
             scene.add(overheadLight);
 
             // Procedural Carpet Texture (90s Arcade / Cinema)
@@ -966,6 +964,10 @@
                                 inspectedMesh.userData.hasBackCover = true;
                             }
                             
+                            // Temporarily change roughness to matte to prevent glare from washing out the HD cover
+                            inspectedMesh.material[4].roughness = 0.9;
+                            inspectedMesh.material[4].needsUpdate = true;
+                            
                             // High-Res Image Swap
                             if (!inspectedMesh.userData.lowResMap) {
                                 inspectedMesh.userData.lowResMap = inspectedMesh.material[4].map;
@@ -1036,6 +1038,10 @@
                         inspectedMesh.material[4].map = inspectedMesh.userData.lowResMap;
                         inspectedMesh.material[4].needsUpdate = true;
                     }
+                    
+                    // Restore glossy plastic look for the shelf
+                    inspectedMesh.material[4].roughness = 0.2;
+                    inspectedMesh.material[4].needsUpdate = true;
                     
                     inspectedMesh.userData.originalParent.attach(inspectedMesh);
                     inspectedMesh.position.copy(originalPosition);
