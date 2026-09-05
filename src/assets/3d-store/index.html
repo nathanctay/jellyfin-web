@@ -995,7 +995,28 @@
             gondola.add(back);
             interactableMeshes.push(back);
 
-            const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
+            // Soft, bevelled clamshell shape
+            const caseShape = new THREE.Shape();
+            const w = 0.96, h = 1.46, r = 0.05; // 0.96 + 0.04 bevels = 1.0. 1.46 + 0.04 = 1.5.
+            caseShape.moveTo(-w/2, -h/2 + r);
+            caseShape.lineTo(-w/2, h/2 - r);
+            caseShape.quadraticCurveTo(-w/2, h/2, -w/2 + r, h/2);
+            caseShape.lineTo(w/2 - r, h/2);
+            caseShape.quadraticCurveTo(w/2, h/2, w/2, h/2 - r);
+            caseShape.lineTo(w/2, -h/2 + r);
+            caseShape.quadraticCurveTo(w/2, -h/2, w/2 - r, -h/2);
+            caseShape.lineTo(-w/2 + r, -h/2);
+            caseShape.quadraticCurveTo(-w/2, -h/2, -w/2, -h/2 + r);
+            
+            const caseGeo = new THREE.ExtrudeGeometry(caseShape, { 
+                depth: 0.08, 
+                bevelEnabled: true, 
+                bevelSegments: 3, 
+                steps: 1, 
+                bevelSize: 0.02, 
+                bevelThickness: 0.01 // 0.08 + 0.02 bevels = 0.10 depth.
+            });
+            caseGeo.center();
             
             // Glossy black clamshell plastic for the edges of the movie cases
             const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
@@ -1080,30 +1101,62 @@
                             const backMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
                             const spineMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
 
-                            const caseMesh = new THREE.Mesh(caseGeo, [casePlasticMat, spineMat, casePlasticMat, casePlasticMat, frontMat, backMat]);
+                            const caseGroup = new THREE.Group();
                             
-                            // 30% chance to have a "BE KIND REWIND" sticker!
+                            const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
+                            caseGroup.position.set(xPos, shelfHeight, side * 0.8);
+                            if (side === -1) {
+                                caseGroup.rotation.y = Math.PI;
+                                caseGroup.rotation.x = 0.1;
+                            } else {
+                                caseGroup.rotation.x = -0.1;
+                            }
+                            
+                            const ud = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
+                            caseGroup.userData = ud;
+
+                            // 1. Puffy Black Plastic Case
+                            const caseMesh = new THREE.Mesh(caseGeo, casePlasticMat);
+                            caseMesh.userData = { parentGroup: caseGroup };
+                            caseGroup.add(caseMesh);
+
+                            // 2. Front Poster Plane (slightly inset)
+                            const frontGeo = new THREE.PlaneGeometry(0.94, 1.44);
+                            const frontMesh = new THREE.Mesh(frontGeo, frontMat);
+                            frontMesh.position.z = 0.051;
+                            frontMesh.name = 'front';
+                            frontMesh.userData = { parentGroup: caseGroup };
+                            caseGroup.add(frontMesh);
+
+                            // 3. Back Cover Plane
+                            const backGeo = new THREE.PlaneGeometry(0.94, 1.44);
+                            const backMesh = new THREE.Mesh(backGeo, backMat);
+                            backMesh.position.z = -0.051;
+                            backMesh.rotation.y = Math.PI;
+                            backMesh.name = 'back';
+                            backMesh.userData = { parentGroup: caseGroup };
+                            caseGroup.add(backMesh);
+
+                            // 4. Spine Plane
+                            const spineGeo = new THREE.PlaneGeometry(0.08, 1.44);
+                            const spineMesh = new THREE.Mesh(spineGeo, spineMat);
+                            spineMesh.position.x = -0.501;
+                            spineMesh.rotation.y = -Math.PI / 2;
+                            spineMesh.name = 'spine';
+                            spineMesh.userData = { parentGroup: caseGroup };
+                            caseGroup.add(spineMesh);
+                            
+                            // 5. 30% chance to have a "BE KIND REWIND" sticker!
                             if (Math.random() < 0.3) {
                                 const sticker = new THREE.Mesh(stickerGeo, stickerMat);
-                                // Slap it on the bottom right corner of the front cover
-                                sticker.position.set(0.2, -0.4, 0.051); 
-                                // Give it a random crooked angle so it looks hand-placed!
+                                sticker.position.set(0.2, -0.4, 0.052); 
                                 sticker.rotation.z = (Math.random() - 0.5) * 0.4;
-                                caseMesh.add(sticker);
-                            }
-                            const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
-                            caseMesh.position.set(xPos, shelfHeight, side * 0.8);
-
-                            if (side === -1) {
-                                caseMesh.rotation.y = Math.PI;
-                                caseMesh.rotation.x = 0.1;
-                            } else {
-                                caseMesh.rotation.x = -0.1;
+                                sticker.userData = { parentGroup: caseGroup };
+                                caseGroup.add(sticker);
                             }
 
-                            caseMesh.userData = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
-                            gondola.add(caseMesh);
-                            interactableMeshes.push(caseMesh);
+                            gondola.add(caseGroup);
+                            interactableMeshes.push(caseMesh, frontMesh, backMesh, spineMesh);
                         });
                         await Promise.all(itemPromises);
                     };
@@ -1142,10 +1195,10 @@
             const nodePositions = [
                 // Center Aisle
                 {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -23},
-                // Left Sub-Aisles
-                {x: -14, z: 19}, {x: -14, z: 5}, {x: -14, z: -9}, {x: -14, z: -23},
-                // Right Sub-Aisles
-                {x: 14, z: 19}, {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -23}
+                // Left Side Aisle
+                {x: -20, z: 20}, {x: -20, z: 12}, {x: -20, z: 5}, {x: -20, z: -2}, {x: -20, z: -9}, {x: -20, z: -16}, {x: -20, z: -23},
+                // Right Side Aisle
+                {x: 20, z: 20}, {x: 20, z: 12}, {x: 20, z: 5}, {x: 20, z: -2}, {x: 20, z: -9}, {x: 20, z: -16}, {x: 20, z: -23}
             ];
 
             for (let pos of nodePositions) {
@@ -1325,23 +1378,35 @@
                                 const backTex = createBackCoverTexture(item, palette);
                                 const spineTex = createSpineTexture(item, palette);
 
-                                inspectedMesh.material[5].map = backTex;
-                                inspectedMesh.material[5].color.setHex(0xffffff); // Clear color fallback
-                                inspectedMesh.material[5].needsUpdate = true;
-                                inspectedMesh.material[1].map = spineTex;
-                                inspectedMesh.material[1].color.setHex(0xffffff);
-                                inspectedMesh.material[1].needsUpdate = true;
+                                const backPlane = inspectedMesh.children.find(c => c.name === 'back');
+                                if (backPlane) {
+                                    backPlane.material.map = backTex;
+                                    backPlane.material.color.setHex(0xffffff);
+                                    backPlane.material.needsUpdate = true;
+                                }
+
+                                const spinePlane = inspectedMesh.children.find(c => c.name === 'spine');
+                                if (spinePlane) {
+                                    spinePlane.material.map = spineTex;
+                                    spinePlane.material.color.setHex(0xffffff);
+                                    spinePlane.material.needsUpdate = true;
+                                }
                                 inspectedMesh.userData.hasBackCover = true;
                             }
 
-                            // Temporarily change roughness to matte to prevent glare from washing out the HD cover
-                            inspectedMesh.material[4].roughness = 0.9;
-                            inspectedMesh.material[4].needsUpdate = true;
+                            const frontPlane = inspectedMesh.children.find(c => c.name === 'front');
 
-                            // High-Res Image Swap
-                            if (!inspectedMesh.userData.lowResMap) {
-                                inspectedMesh.userData.lowResMap = inspectedMesh.material[4].map;
+                            // Temporarily change roughness to matte to prevent glare from washing out the HD cover
+                            if (frontPlane) {
+                                frontPlane.material.roughness = 0.9;
+                                frontPlane.material.needsUpdate = true;
+
+                                // High-Res Image Swap
+                                if (!inspectedMesh.userData.lowResMap) {
+                                    inspectedMesh.userData.lowResMap = frontPlane.material.map;
+                                }
                             }
+                            
                             const currentMesh = inspectedMesh;
                             const itemId = currentMesh.userData.item.Id;
                             const highResUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=1024&quality=90`;
@@ -1355,8 +1420,12 @@
                                         const highResTex = new THREE.Texture(bmp);
                                         highResTex.colorSpace = THREE.SRGBColorSpace;
                                         highResTex.needsUpdate = true;
-                                        currentMesh.material[4].map = highResTex;
-                                        currentMesh.material[4].needsUpdate = true;
+                                        
+                                        const cFront = currentMesh.children.find(c => c.name === 'front');
+                                        if (cFront) {
+                                            cFront.material.map = highResTex;
+                                            cFront.material.needsUpdate = true;
+                                        }
                                         currentMesh.userData.highResMap = highResTex;
                                     } else {
                                         // They already put it back, so cache it in userData for next time they pick it up
@@ -1404,14 +1473,15 @@
 
                     currentState = STATE.BROWSE;
 
-                    if (inspectedMesh.userData.lowResMap) {
-                        inspectedMesh.material[4].map = inspectedMesh.userData.lowResMap;
-                        inspectedMesh.material[4].needsUpdate = true;
+                    const frontPlane = inspectedMesh.children.find(c => c.name === 'front');
+                    if (frontPlane) {
+                        if (inspectedMesh.userData.lowResMap) {
+                            frontPlane.material.map = inspectedMesh.userData.lowResMap;
+                        }
+                        // Restore glossy plastic look for the shelf
+                        frontPlane.material.roughness = 0.2;
+                        frontPlane.material.needsUpdate = true;
                     }
-
-                    // Restore glossy plastic look for the shelf
-                    inspectedMesh.material[4].roughness = 0.2;
-                    inspectedMesh.material[4].needsUpdate = true;
 
                     inspectedMesh.userData.originalParent.attach(inspectedMesh);
                     inspectedMesh.position.copy(originalPosition);
@@ -1489,10 +1559,12 @@
                     camera.position.z = currentCameraZ;
 
                     raycaster.setFromCamera(mouse, camera);
-                    const intersects = raycaster.intersectObjects(interactableMeshes);
+                    // Use recursive intersection so we can hit children of Groups
+                    const intersects = raycaster.intersectObjects(interactableMeshes, true);
 
                     if (intersects.length > 0) {
-                        const hit = intersects[0].object;
+                        let hit = intersects[0].object;
+                        if (hit.userData && hit.userData.parentGroup) hit = hit.userData.parentGroup;
                         if (hoveredMesh !== hit) {
                             // Reset previous hovered mesh
                             if (hoveredMesh) {
