@@ -449,10 +449,8 @@
                 }
             }
 
-            // We use 15 here because local dev servers (HTTP/1.1) cap at 6 concurrent connections.
-            // 15 provides a smooth pipeline without overwhelming the browser's internal socket queue.
-            // For production on Cloudflare (HTTP/2), you can bump this back to 50-100!
-            const textureSemaphore = new Semaphore(15); 
+            // Optimized for Cloudflare HTTP/2 multiplexing in production
+            const textureSemaphore = new Semaphore(100); 
             const textureCache = new Map();
 
             // Helper to fetch images and extract average color
@@ -525,37 +523,38 @@
                     { name: 'Mystery', genre: 'Mystery', sort: 'SortName', randomizeWindow: true }
                 ];
 
-                const catPromises = categories.map(async (cat) => {
-                    const genreParam = cat.genre ? `&Genres=${cat.genre}` : '';
-                    const sortParam = cat.sortOrder ? `&SortBy=${cat.sort}&SortOrder=${cat.sortOrder}` : `&SortBy=${cat.sort}`;
-
-                    // 1. Fetch just 1 item to get the TotalRecordCount (Lightning fast, uses index)
-                    const countUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=1&Fields=Id${genreParam}`;
-                    const countRes = await fetch(countUrl, { headers: { 'X-Emby-Token': jfToken } });
-                    const countData = await countRes.json();
-                    const total = countData.TotalRecordCount || 0;
-
-                    if (total === 0) return [];
-
-                    // 2. Pick a random "window" of 100 movies from the catalog
-                    const limit = Math.min(100, total);
-                    const maxStart = Math.max(0, total - limit);
-                    
-                    // If it's the "Latest" shelf, start at 0. Otherwise, pick a random spot in the alphabet.
-                    const startIndex = cat.randomizeWindow === false ? 0 : Math.floor(Math.random() * maxStart);
-
-                    // 3. Fetch the actual data using the fast, indexed sort
-                    const dataUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=${limit}&StartIndex=${startIndex}${sortParam}&Fields=${fields}${genreParam}`;
-                    const res = await fetch(dataUrl, { headers: { 'X-Emby-Token': jfToken } });
-                    const data = await res.json();
-                    
-                    let items = extractItems(data);
-                    
-                    // 4. Shuffle the 100 items on the client
-                    return shuffleArray(items);
-                });
+                let lists;
+                const cachedData = sessionStorage.getItem('virtualStoreCache');
                 
-                const lists = await Promise.all(catPromises);
+                if (cachedData) {
+                    lists = JSON.parse(cachedData);
+                } else {
+                    const catPromises = categories.map(async (cat) => {
+                        const genreParam = cat.genre ? `&Genres=${cat.genre}` : '';
+                        const sortParam = cat.sortOrder ? `&SortBy=${cat.sort}&SortOrder=${cat.sortOrder}` : `&SortBy=${cat.sort}`;
+
+                        const countUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=1&Fields=Id${genreParam}`;
+                        const countRes = await fetch(countUrl, { headers: { 'X-Emby-Token': jfToken } });
+                        const countData = await countRes.json();
+                        const total = countData.TotalRecordCount || 0;
+
+                        if (total === 0) return [];
+
+                        const limit = Math.min(100, total);
+                        const maxStart = Math.max(0, total - limit);
+                        const startIndex = cat.randomizeWindow === false ? 0 : Math.floor(Math.random() * maxStart);
+
+                        const dataUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=${limit}&StartIndex=${startIndex}${sortParam}&Fields=${fields}${genreParam}`;
+                        const res = await fetch(dataUrl, { headers: { 'X-Emby-Token': jfToken } });
+                        const data = await res.json();
+                        
+                        let items = extractItems(data);
+                        return shuffleArray(items);
+                    });
+                    
+                    lists = await Promise.all(catPromises);
+                    sessionStorage.setItem('virtualStoreCache', JSON.stringify(lists));
+                }
                 
                 // Fallback list of all movies in case a genre is completely empty on their server
                 const allMovies = lists.flat().filter(m => m !== undefined);
@@ -665,8 +664,10 @@
                 const sideItems = side === 1 ? itemsFront : itemsBack;
                 if (!sideItems || !sideItems.length) continue;
                 
-                // Randomize starting index per *side* so gondolas look natural, but increment sequentially per shelf so no repeats
-                let itemIndex = Math.floor(Math.random() * sideItems.length);
+                // We start at 0 instead of a random index! The array is ALREADY shuffled by loadData().
+                // If we pick a random index here, returning from BFCache will pick 30 DIFFERENT movies
+                // out of the 100 cached items, defeating the image cache!
+                let itemIndex = 0;
 
                 for (let s = 0; s < shelfCount; s++) {
                     const shelfHeight = 0.5 + s * 2;
@@ -752,9 +753,9 @@
                 // Center Aisle
                 {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -23},
                 // Left Sub-Aisles
-                {x: -14, z: 5}, {x: -14, z: -9}, {x: -14, z: -23},
+                {x: -14, z: 19}, {x: -14, z: 5}, {x: -14, z: -9}, {x: -14, z: -23},
                 // Right Sub-Aisles
-                {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -23}
+                {x: 14, z: 19}, {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -23}
             ];
             
             for (let pos of nodePositions) {
@@ -781,7 +782,7 @@
 
 
             // --- State Machine & Inspection ---
-            const STATE = { BROWSE: 0, INSPECT: 1 };
+            const STATE = { BROWSE: 0, INSPECT: 1, PLAYING: 2 };
             let currentState = STATE.BROWSE;
             let inspectedMesh = null;
             let originalPosition = new THREE.Vector3();
@@ -987,8 +988,55 @@
 
             hudPlay.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (selectedItem) {
-                    parent.postMessage({ type: 'OPEN_DETAILS', payload: { itemId: selectedItem.id } }, '*');
+                if (selectedItem && inspectedMesh) {
+                    currentState = STATE.PLAYING;
+                    hud.classList.remove('show');
+                    document.body.style.cursor = 'default';
+
+                    // Black overlay to fade out
+                    const overlay = document.createElement('div');
+                    overlay.style.position = 'absolute';
+                    overlay.style.top = '0'; overlay.style.left = '0';
+                    overlay.style.width = '100vw'; overlay.style.height = '100vh';
+                    overlay.style.backgroundColor = 'black';
+                    overlay.style.opacity = '0';
+                    overlay.style.transition = 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                    overlay.style.pointerEvents = 'none';
+                    overlay.style.zIndex = '9999';
+                    document.body.appendChild(overlay);
+
+                    const startRotY = inspectedMesh.rotation.y;
+                    // Rotate counter-clockwise so the right edge (cover) swings forward and left
+                    const endRotY = startRotY + Math.PI / 1.2; 
+                    const startPos = inspectedMesh.position.clone();
+                    
+                    // Move the center of the box to the right and very close to the camera, 
+                    // so the swinging front cover perfectly slices through the viewport!
+                    const targetWorldPos = new THREE.Vector3(1.2, 0, -0.8); 
+                    targetWorldPos.applyMatrix4(camera.matrixWorld);
+
+                    let startTime = null;
+                    const duration = 800; 
+                    
+                    setTimeout(() => overlay.style.opacity = '1', 50);
+
+                    function playAnim(time) {
+                        if (!startTime) startTime = time;
+                        const progress = Math.min((time - startTime) / duration, 1);
+                        
+                        // Smooth cubic ease for a cinematic feel
+                        const ease = progress * progress * (3 - 2 * progress); 
+                        
+                        inspectedMesh.rotation.y = startRotY + (endRotY - startRotY) * ease;
+                        inspectedMesh.position.lerpVectors(startPos, targetWorldPos, ease);
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(playAnim);
+                        } else {
+                            parent.postMessage({ type: 'OPEN_DETAILS', payload: { itemId: selectedItem.id } }, '*');
+                        }
+                    }
+                    requestAnimationFrame(playAnim);
                 }
             });
 
