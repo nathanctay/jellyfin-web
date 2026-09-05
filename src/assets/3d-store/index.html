@@ -393,16 +393,55 @@
                 return tex;
             }
 
+            // Simple semaphore to limit concurrent operations
+            class Semaphore {
+                constructor(max) {
+                    this.max = max;
+                    this.current = 0;
+                    this.queue = [];
+                }
+                
+                async acquire() {
+                    if (this.current < this.max) {
+                        this.current++;
+                        return Promise.resolve();
+                    }
+                    return new Promise(resolve => this.queue.push(resolve));
+                }
+                
+                release() {
+                    this.current--;
+                    if (this.queue.length > 0) {
+                        this.current++;
+                        this.queue.shift()();
+                    }
+                }
+            }
+
+            const textureSemaphore = new Semaphore(10); // Max 10 concurrent texture loads
+            const textureCache = new Map();
+
             // Helper to fetch images and extract average color
             async function loadTexture(itemId) {
+                if (textureCache.has(itemId)) {
+                    return textureCache.get(itemId);
+                }
+                
+                await textureSemaphore.acquire();
+                
                 try {
+                    // Check cache again inside lock just in case it was loaded while waiting
+                    if (textureCache.has(itemId)) {
+                        return textureCache.get(itemId);
+                    }
+                    
                     const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=400&quality=80`;
                     const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
                     if (!imgRes.ok) return null;
                     const blob = await imgRes.blob();
                     const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
 
-                    // Extract true average color
+                    // Simplify color extraction (Huge performance win)
                     const tinyCanvas = document.createElement('canvas');
                     tinyCanvas.width = 16;
                     tinyCanvas.height = 16;
@@ -410,64 +449,17 @@
                     tinyCtx.drawImage(bmp, 0, 0, 16, 16);
                     const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
                     
-                    // Color Quantization (Binning) to find the Dominant Color
-                    // This prevents contrasting colors (like Teal and Orange) from mixing into gray
-                    const buckets = {};
-                    let maxBucket = null;
-                    let maxScore = -1;
-
+                    let r = 0, g = 0, b = 0, count = 0;
                     for (let i = 0; i < pixels.length; i += 4) {
-                        const r = pixels[i];
-                        const g = pixels[i+1];
-                        const b = pixels[i+2];
-                        
-                        // Bin into 32x32x32 buckets (8 bins per channel)
-                        const rBin = Math.floor(r / 32);
-                        const gBin = Math.floor(g / 32);
-                        const bBin = Math.floor(b / 32);
-                        const key = `${rBin},${gBin},${bBin}`;
-                        
-                        if (!buckets[key]) buckets[key] = { count: 0, r: 0, g: 0, b: 0 };
-                        
-                        buckets[key].count++;
-                        buckets[key].r += r;
-                        buckets[key].g += g;
-                        buckets[key].b += b;
+                        r += pixels[i];
+                        g += pixels[i+1];
+                        b += pixels[i+2];
+                        count++;
                     }
                     
-                    // Evaluate the buckets
-                    for (const key in buckets) {
-                        const bucket = buckets[key];
-                        const r = bucket.r / bucket.count;
-                        const g = bucket.g / bucket.count;
-                        const b = bucket.b / bucket.count;
-                        
-                        const r_norm = r / 255, g_norm = g / 255, b_norm = b / 255;
-                        const max = Math.max(r_norm, g_norm, b_norm);
-                        const min = Math.min(r_norm, g_norm, b_norm);
-                        const l = (max + min) / 2;
-                        let s = 0;
-                        if (max !== min) {
-                            s = l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
-                        }
-                        
-                        // Reward saturation. If a poster is Black & White, S=0, so the largest gray bucket wins.
-                        // If it has color, vibrant buckets get a 3x multiplier to prevent them being overpowered by dark backgrounds.
-                        let score = bucket.count;
-                        if (l > 0.1 && l < 0.9) {
-                            score += bucket.count * (s * 3); 
-                        }
-                        
-                        if (score > maxScore) {
-                            maxScore = score;
-                            maxBucket = bucket;
-                        }
-                    }
-
-                    const avgR = Math.floor(maxBucket.r / maxBucket.count);
-                    const avgG = Math.floor(maxBucket.g / maxBucket.count);
-                    const avgB = Math.floor(maxBucket.b / maxBucket.count);
-                    
+                    const avgR = Math.floor(r / count);
+                    const avgG = Math.floor(g / count);
+                    const avgB = Math.floor(b / count);
                     const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
                     
                     // WCAG Relative Luminance
@@ -488,13 +480,18 @@
                     const tex = new THREE.Texture(bmp);
                     tex.colorSpace = THREE.SRGBColorSpace;
                     tex.needsUpdate = true;
-                    return { texture: tex, palette: palette };
+                    
+                    const result = { texture: tex, palette: palette };
+                    textureCache.set(itemId, result);
+                    return result;
                 } catch (e) {
                     return null;
+                } finally {
+                    textureSemaphore.release();
                 }
             }
-            // Load the store layout data
-            await loadData();
+            // Start loading data in the background without blocking the render loop
+            loadData().catch(e => console.error(e));
         async function loadData() {
             try {
                 const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
@@ -530,6 +527,11 @@
                 // Fallback list of all movies in case a genre is completely empty on their server
                 const allMovies = lists.flat().filter(m => m !== undefined);
 
+                // Progressive Rendering: Hide the loading screen immediately so the user can enter the room!
+                // The physical gondolas will render instantly, and the movies will pop in as their textures finish loading.
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => loadingScreen.style.display = 'none', 500);
+
                 // The "Back-to-Back E" layout
                 // We run all Gondola builds in parallel to prevent massive sequential loading times
                 await Promise.all([
@@ -549,9 +551,6 @@
                     buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
                     buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies, categories[8].name, lists[14], categories[14].name)
                 ]);
-
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => loadingScreen.style.display = 'none', 500);
             } catch (e) {
                 console.error("Failed to load store data", e);
                 loadingScreen.innerText = "Error loading store.";
@@ -653,19 +652,17 @@
                         const itemPromises = shelfItems.map(async (item, i) => {
                             const texData = await loadTexture(item.Id);
                             
-                            let frontMat, backTex, spineTex;
+                            let frontMat, backColor = 0x111111;
                             if (texData) {
                                 frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
-                                backTex = createBackCoverTexture(item, texData.palette);
-                                spineTex = createSpineTexture(item, texData.palette);
+                                backColor = texData.palette.bg;
                             } else {
                                 frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
-                                backTex = createBackCoverTexture(item);
-                                spineTex = createSpineTexture(item);
                             }
                             
-                            const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.5 });
-                            const spineMat = new THREE.MeshStandardMaterial({ map: spineTex, roughness: 0.5 });
+                            // Create unique material instances so we can lazily inject textures later on click
+                            const backMat = new THREE.MeshStandardMaterial({ color: backColor, roughness: 0.5 });
+                            const spineMat = new THREE.MeshStandardMaterial({ color: backColor, roughness: 0.5 });
                             
                             const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
                             
@@ -679,7 +676,7 @@
                                 caseMesh.rotation.x = -0.1;
                             }
                             
-                            caseMesh.userData = { id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
+                            caseMesh.userData = { item: item, id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
                             gondola.add(caseMesh);
                             interactableMeshes.push(caseMesh);
                         });
@@ -861,6 +858,24 @@
                             currentState = STATE.INSPECT;
                             inspectedMesh = hoveredMesh;
                             
+                            // Lazily generate the back and spine textures the very first time the user picks up this specific movie
+                            if (!inspectedMesh.userData.hasBackCover) {
+                                const item = inspectedMesh.userData.item;
+                                const texData = textureCache.get(item.Id);
+                                const palette = texData ? texData.palette : null;
+                                
+                                const backTex = createBackCoverTexture(item, palette);
+                                const spineTex = createSpineTexture(item, palette);
+                                
+                                inspectedMesh.material[5].map = backTex;
+                                inspectedMesh.material[5].color.setHex(0xffffff); // Clear color fallback
+                                inspectedMesh.material[5].needsUpdate = true;
+                                inspectedMesh.material[1].map = spineTex;
+                                inspectedMesh.material[1].color.setHex(0xffffff);
+                                inspectedMesh.material[1].needsUpdate = true;
+                                inspectedMesh.userData.hasBackCover = true;
+                            }
+                            
                             originalPosition.copy(inspectedMesh.position);
                             originalRotation.copy(inspectedMesh.rotation);
                             inspectedMesh.userData.originalParent = inspectedMesh.parent;
@@ -999,7 +1014,7 @@
             };
         }
 
-        window.addEventListener('unload', () => {
+        window.addEventListener('pagehide', () => {
             cleanup3D();
         });
     </script>
