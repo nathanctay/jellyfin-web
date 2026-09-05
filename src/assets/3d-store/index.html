@@ -146,32 +146,50 @@
             document.body.appendChild(renderer.domElement);
 
             // Standard "Retail" Lighting (Bright and even)
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
             scene.add(ambientLight);
 
             const overheadLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            overheadLight.position.set(0, 8, 3);
+            // Placed high up and off to the right, pointing at the origin.
+            // This ensures the glossy specular reflections bounce off to the left, missing the camera!
+            overheadLight.position.set(10, 15, 5);
             scene.add(overheadLight);
 
-            // Procedural Floor Texture (Classic retail tile)
+            // Procedural Carpet Texture (90s Arcade / Cinema)
             function createFloorTexture() {
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
                 canvas.height = 512;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#eeeeee';
+                
+                // Dark indigo base
+                ctx.fillStyle = '#161625'; 
                 ctx.fillRect(0, 0, 512, 512);
-                ctx.fillStyle = '#222222';
-                for (let i=0; i<8; i++) {
-                    for (let j=0; j<8; j++) {
-                        if ((i+j)%2 === 0) ctx.fillRect(i*64, j*64, 64, 64);
-                    }
+                
+                // Static noise to simulate carpet threads
+                const imgData = ctx.getImageData(0, 0, 512, 512);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * 35;
+                    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise));
+                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise));
                 }
+                ctx.putImageData(imgData, 0, 0);
+
+                // Neon 90s specks
+                const colors = ['#e94560', '#6C63FF', '#00d2ff', '#FF6584'];
+                for (let i = 0; i < 3000; i++) {
+                    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+                }
+
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(20, 20); // Larger tiles
+                tex.repeat.set(15, 15);
                 tex.colorSpace = THREE.SRGBColorSpace;
+                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
                 return tex;
             }
 
@@ -192,8 +210,9 @@
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(40, 40);
+                tex.repeat.set(15, 20);
                 tex.colorSpace = THREE.SRGBColorSpace;
+                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
                 return tex;
             }
 
@@ -216,6 +235,7 @@
             // BoxGeometry materials: Right, Left, Top, Bottom, Front, Back
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
             
+            // Restored ceiling to 16 so it doesn't cut off gondola signs
             const wallsGeo = new THREE.BoxGeometry(50, 16, 65);
             const walls = new THREE.Mesh(wallsGeo, roomMats);
             walls.position.set(0, 6.5, 0); 
@@ -651,7 +671,9 @@
             const backGeo = new THREE.BoxGeometry(length, shelfCount * 2 + 2, 0.5);
             const back = new THREE.Mesh(backGeo, backMat);
             back.position.set(0, shelfCount - 0.5, 0); // Centered height
+            back.userData = { isShelf: true };
             gondola.add(back);
+            interactableMeshes.push(back);
 
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
             const solidMat = new THREE.MeshStandardMaterial({ color: 0x241407, roughness: 0.6 });
@@ -853,7 +875,7 @@
 
                     if (hoveredMesh && hoveredMesh.userData) {
                         if (hoveredMesh.userData.isExit) {
-                            window.history.back(); // Or window.location.href = '/' if this is the main app
+                            parent.postMessage({ type: 'EXIT' }, '*');
                             return;
                         } else if (hoveredMesh.userData.isNode) {
                             // Clicked a floor node to walk
@@ -944,6 +966,41 @@
                                 inspectedMesh.userData.hasBackCover = true;
                             }
                             
+                            // High-Res Image Swap
+                            if (!inspectedMesh.userData.lowResMap) {
+                                inspectedMesh.userData.lowResMap = inspectedMesh.material[4].map;
+                            }
+                            const currentMesh = inspectedMesh;
+                            const itemId = currentMesh.userData.item.Id;
+                            const highResUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=1024&quality=90`;
+                            
+                            fetch(highResUrl, { headers: { 'X-Emby-Token': jfToken } })
+                                .then(res => res.blob())
+                                .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                                .then(bmp => {
+                                    // Only swap if they are still holding THIS specific movie
+                                    if (inspectedMesh === currentMesh && currentState === STATE.INSPECT) {
+                                        const highResTex = new THREE.Texture(bmp);
+                                        highResTex.colorSpace = THREE.SRGBColorSpace;
+                                        highResTex.needsUpdate = true;
+                                        currentMesh.material[4].map = highResTex;
+                                        currentMesh.material[4].needsUpdate = true;
+                                        currentMesh.userData.highResMap = highResTex;
+                                    } else {
+                                        // They already put it back, so cache it in userData for next time they pick it up
+                                        const highResTex = new THREE.Texture(bmp);
+                                        highResTex.colorSpace = THREE.SRGBColorSpace;
+                                        highResTex.needsUpdate = true;
+                                        currentMesh.userData.highResMap = highResTex;
+                                    }
+                                }).catch(e => console.error(e));
+                                
+                            // If it already loaded from a previous inspect, swap it instantly!
+                            if (currentMesh.userData.highResMap) {
+                                currentMesh.material[4].map = currentMesh.userData.highResMap;
+                                currentMesh.material[4].needsUpdate = true;
+                            }
+                            
                             originalPosition.copy(inspectedMesh.position);
                             originalRotation.copy(inspectedMesh.rotation);
                             inspectedMesh.userData.originalParent = inspectedMesh.parent;
@@ -974,6 +1031,11 @@
                     if (dragDistance > 10) return;
 
                     currentState = STATE.BROWSE;
+                    
+                    if (inspectedMesh.userData.lowResMap) {
+                        inspectedMesh.material[4].map = inspectedMesh.userData.lowResMap;
+                        inspectedMesh.material[4].needsUpdate = true;
+                    }
                     
                     inspectedMesh.userData.originalParent.attach(inspectedMesh);
                     inspectedMesh.position.copy(originalPosition);
@@ -1068,11 +1130,19 @@
                             if (hoveredMesh.userData.isCase) {
                                 hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
                                 hoveredMesh.translateZ(0.2); // Pops out locally from gondola
+                                document.body.style.cursor = 'pointer';
                             }
-                            else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.9;
-                            else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.7;
-                            
-                            document.body.style.cursor = 'pointer';
+                            else if (hoveredMesh.userData.isNode) {
+                                hoveredMesh.material.opacity = 0.9;
+                                document.body.style.cursor = 'pointer';
+                            }
+                            else if (hoveredMesh.userData.isExit) {
+                                hoveredMesh.material.opacity = 0.7;
+                                document.body.style.cursor = 'pointer';
+                            }
+                            else {
+                                document.body.style.cursor = 'default';
+                            }
                         }
                     } else if (hoveredMesh !== null) {
                         if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
