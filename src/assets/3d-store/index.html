@@ -803,9 +803,16 @@
                         poster.position.z = 0.12;
                         group.add(poster);
 
-                        // Add a subtle gallery light pointing down at each poster
-                        const light = new THREE.PointLight(0xffeedd, 0.6, 15);
-                        light.position.set(0, 6, 2); // 6 units above, 2 units out from the wall
+                        // Add a subtle gallery SpotLight pointing down at the poster!
+                        const light = new THREE.SpotLight(0xffeedd, 1.2, 15, Math.PI / 4, 0.8, 1);
+                        light.position.set(0, 6, 3); // High up and slightly out from the wall
+                        
+                        // SpotLights need a target to point at
+                        const targetObj = new THREE.Object3D();
+                        targetObj.position.set(0, 0, 0); // Point exactly at the center of the poster
+                        group.add(targetObj);
+                        
+                        light.target = targetObj;
                         group.add(light);
 
                         scene.add(group);
