@@ -99,11 +99,11 @@
 
         async function init3D() {
             const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0b0b0d);
+            scene.background = new THREE.Color(0x111111);
 
-            // Move camera back slightly to see multiple shelves
             const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 2.5, 6);
+            camera.position.set(0, 8.5, 14);
+            // Initial tilt will be set by cameraPitch in the state block
 
             const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -111,11 +111,71 @@
             renderer.outputColorSpace = THREE.SRGBColorSpace;
             document.body.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // Standard "Retail" Lighting (Bright and even)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
             scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(5, 10, 7);
-            scene.add(dirLight);
+
+            const overheadLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            overheadLight.position.set(0, 8, 3);
+            scene.add(overheadLight);
+
+            // Procedural Floor Texture (Classic retail tile/carpet)
+            function createFloorTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#0a0a0c';
+                ctx.fillRect(0, 0, 512, 512);
+                ctx.fillStyle = '#111114';
+                for (let i=0; i<8; i++) {
+                    for (let j=0; j<8; j++) {
+                        if ((i+j)%2 === 0) ctx.fillRect(i*64, j*64, 64, 64);
+                    }
+                }
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(20, 10);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            // Physical Store Room
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(60, 60);
+            const floorMat = new THREE.MeshStandardMaterial({ 
+                map: createFloorTexture(),
+                roughness: 0.6, 
+                metalness: 0.1 
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(0, -1.49, 0); 
+            scene.add(floor);
+
+            // Walls and Ceiling
+            const wallMat = new THREE.MeshStandardMaterial({ 
+                color: 0x151515, 
+                roughness: 0.9, 
+                side: THREE.BackSide // Render the inside of the box
+            });
+            const wallsGeo = new THREE.BoxGeometry(60, 15, 60);
+            const walls = new THREE.Mesh(wallsGeo, wallMat);
+            walls.position.set(0, 5, 0); 
+            scene.add(walls);
+
+            // Shelf Backboards (The walls of the gondolas)
+            const backboardGeo = new THREE.BoxGeometry(12, 8, 0.2);
+            const backboardMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+            
+            const leftBack = new THREE.Mesh(backboardGeo, backboardMat);
+            leftBack.position.set(-8, 2, -0.8);
+            scene.add(leftBack);
+            
+            const rightBack = new THREE.Mesh(backboardGeo, backboardMat);
+            rightBack.position.set(8, 2, -0.8);
+            scene.add(rightBack);
 
             const interactableMeshes = [];
 
@@ -306,16 +366,63 @@
                     tinyCtx.drawImage(bmp, 0, 0, 16, 16);
                     const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
                     
-                    let sumR = 0, sumG = 0, sumB = 0;
+                    // Color Quantization (Binning) to find the Dominant Color
+                    // This prevents contrasting colors (like Teal and Orange) from mixing into gray
+                    const buckets = {};
+                    let maxBucket = null;
+                    let maxScore = -1;
+
                     for (let i = 0; i < pixels.length; i += 4) {
-                        sumR += pixels[i];
-                        sumG += pixels[i+1];
-                        sumB += pixels[i+2];
+                        const r = pixels[i];
+                        const g = pixels[i+1];
+                        const b = pixels[i+2];
+                        
+                        // Bin into 32x32x32 buckets (8 bins per channel)
+                        const rBin = Math.floor(r / 32);
+                        const gBin = Math.floor(g / 32);
+                        const bBin = Math.floor(b / 32);
+                        const key = `${rBin},${gBin},${bBin}`;
+                        
+                        if (!buckets[key]) buckets[key] = { count: 0, r: 0, g: 0, b: 0 };
+                        
+                        buckets[key].count++;
+                        buckets[key].r += r;
+                        buckets[key].g += g;
+                        buckets[key].b += b;
                     }
-                    const pixelCount = pixels.length / 4;
-                    const avgR = Math.floor(sumR / pixelCount);
-                    const avgG = Math.floor(sumG / pixelCount);
-                    const avgB = Math.floor(sumB / pixelCount);
+                    
+                    // Evaluate the buckets
+                    for (const key in buckets) {
+                        const bucket = buckets[key];
+                        const r = bucket.r / bucket.count;
+                        const g = bucket.g / bucket.count;
+                        const b = bucket.b / bucket.count;
+                        
+                        const r_norm = r / 255, g_norm = g / 255, b_norm = b / 255;
+                        const max = Math.max(r_norm, g_norm, b_norm);
+                        const min = Math.min(r_norm, g_norm, b_norm);
+                        const l = (max + min) / 2;
+                        let s = 0;
+                        if (max !== min) {
+                            s = l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+                        }
+                        
+                        // Reward saturation. If a poster is Black & White, S=0, so the largest gray bucket wins.
+                        // If it has color, vibrant buckets get a 3x multiplier to prevent them being overpowered by dark backgrounds.
+                        let score = bucket.count;
+                        if (l > 0.1 && l < 0.9) {
+                            score += bucket.count * (s * 3); 
+                        }
+                        
+                        if (score > maxScore) {
+                            maxScore = score;
+                            maxBucket = bucket;
+                        }
+                    }
+
+                    const avgR = Math.floor(maxBucket.r / maxBucket.count);
+                    const avgG = Math.floor(maxBucket.g / maxBucket.count);
+                    const avgB = Math.floor(maxBucket.b / maxBucket.count);
                     
                     const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
                     
@@ -342,101 +449,168 @@
                     return null;
                 }
             }
+            // Load the store layout data
+            await loadData();
+        async function loadData() {
+            try {
+                const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
+                const fields = 'Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
+                
+                // Fetch 9 distinct categories for our 9 massive structures
+                const categories = [
+                    { name: 'Action', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Action` },
+                    { name: 'Comedy', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Comedy` },
+                    { name: 'Drama', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Drama` },
+                    { name: 'Sci-Fi', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Sci-Fi` },
+                    { name: 'Horror', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Horror` },
+                    { name: 'Family', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Family` },
+                    { name: 'Thriller', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Thriller` },
+                    { name: 'Latest', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=DateCreated&SortOrder=Descending&Fields=${fields}` },
+                    { name: 'Suggestions', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}` }
+                ];
 
-            // Helper to build a shelf
-            async function buildShelf(title, endpoint, yPos) {
-                try {
-                    const res = await fetch(`${jfServer}${endpoint}`, { headers: { 'X-Emby-Token': jfToken } });
+                const catPromises = categories.map(async (cat) => {
+                    const res = await fetch(`${jfServer}${cat.url}`, { headers: { 'X-Emby-Token': jfToken } });
                     const data = await res.json();
-                    const items = data.Items || data || [];
-                    if (!items.length) return;
+                    return extractItems(data);
+                });
+                
+                const lists = await Promise.all(catPromises);
 
-                    const caseCount = Math.min(items.length, 20);
-                    const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
-                    const solidMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
+                // The "Back-to-Back E" layout
+                // We run all Gondola builds in parallel to prevent massive sequential loading times
+                await Promise.all([
+                    // 1. The Outer Walls (Single Sided)
+                    buildGondola(lists[0], { x: -18, z: 0 }, Math.PI / 2, 36, false), // Left Wall
+                    buildGondola(lists[1], { x: 18, z: 0 }, -Math.PI / 2, 36, false), // Right Wall
+                    buildGondola(lists[2], { x: 0, z: -18 }, 0, 36, false), // Back Wall
+                    
+                    // 2. The Gondolas (The "teeth" of the E, Double Sided)
+                    // Left Side Gondolas
+                    buildGondola(lists[3], { x: -11, z: -8 }, 0, 14, true),
+                    buildGondola(lists[4], { x: -11, z: 0 }, 0, 14, true),
+                    buildGondola(lists[5], { x: -11, z: 8 }, 0, 14, true),
+                    
+                    // Right Side Gondolas
+                    buildGondola(lists[6], { x: 11, z: -8 }, 0, 14, true),
+                    buildGondola(lists[7], { x: 11, z: 0 }, 0, 14, true),
+                    buildGondola(lists[8], { x: 11, z: 8 }, 0, 14, true)
+                ]);
 
-                    // We need separate materials for each instance to have different textures
-                    // Three.js InstancedMesh doesn't support different textures per instance easily without texture atlases or NodeMaterial.
-                    // Since it's <60 items total, we will use a Group of individual Meshes for now, which is still very fast.
-                    const shelfGroup = new THREE.Group();
-                    shelfGroup.position.y = yPos;
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => loadingScreen.style.display = 'none', 500);
+            } catch (e) {
+                console.error("Failed to load store data", e);
+                loadingScreen.innerText = "Error loading store.";
+            }
+        }
 
-                    // Physical Shelf Plank
-                    const shelfPlankGeo = new THREE.BoxGeometry(caseCount * 1.2, 0.1, 0.8);
-                    const shelfPlankMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1f, roughness: 0.9 });
-                    const shelfPlank = new THREE.Mesh(shelfPlankGeo, shelfPlankMat);
-                    shelfPlank.position.set(0, -0.75, -0.1);
-                    shelfGroup.add(shelfPlank);
+        // Builds a shelving unit. Double-sided for center gondolas, single-sided for walls.
+        async function buildGondola(items, position, rotationY, length = 20, isDoubleSided = false) {
+            if (!items || !items.length) return;
+            
+            const gondola = new THREE.Group();
+            gondola.position.set(position.x, 0, position.z);
+            gondola.rotation.y = rotationY;
+            scene.add(gondola);
 
-                    for (let i = 0; i < caseCount; i++) {
-                        const item = items[i];
-                        const texData = await loadTexture(item.Id);
+            // Backboard
+            const backMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const backGeo = new THREE.BoxGeometry(length, 8, 0.5);
+            const back = new THREE.Mesh(backGeo, backMat);
+            back.position.set(0, 3, 0); // Centered
+            gondola.add(back);
 
-                        let frontMat, backTex, spineTex;
-                        if (texData) {
-                            frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
-                            backTex = createBackCoverTexture(item, texData.palette);
-                            spineTex = createSpineTexture(item, texData.palette);
-                        } else {
-                            frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
-                            backTex = createBackCoverTexture(item);
-                            spineTex = createSpineTexture(item);
-                        }
+            const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
+            const solidMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
 
-                        const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.5 });
-                        const spineMat = new THREE.MeshStandardMaterial({ map: spineTex, roughness: 0.5 });
+            // 3 Vertical Shelves
+            const shelfHeights = [0.5, 2.5, 4.5];
+            const itemsPerShelf = Math.floor(length / 1.2); 
+            
+            const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
 
-                        // Materials array matches BoxGeometry faces: right, left, top, bottom, front, back
-                        const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
-                        caseMesh.position.set((i - caseCount / 2) * 1.2, 0, 0);
-                        caseMesh.rotation.x = -0.1;
-                        caseMesh.rotation.y = (Math.random() - 0.5) * 0.1;
+            const shelfPromises = [];
 
-                        // Store metadata for raycasting
-                        caseMesh.userData = { id: item.Id, name: item.Name, type: item.Type };
-                        shelfGroup.add(caseMesh);
-                        interactableMeshes.push(caseMesh);
-                    }
-                    scene.add(shelfGroup);
-                } catch (err) {
-                    console.error("Failed to build shelf for endpoint", endpoint, err);
+            for (const side of sides) {
+                for (let s = 0; s < 3; s++) {
+                    const plankGeo = new THREE.BoxGeometry(length, 0.1, 1.2);
+                    const plank = new THREE.Mesh(plankGeo, solidMat);
+                    plank.position.set(0, shelfHeights[s] - 0.75, side * 0.6);
+                    gondola.add(plank);
+
+                    const startIndex = Math.max(0, Math.floor(Math.random() * (items.length - itemsPerShelf)));
+                    const shelfItems = items.slice(startIndex, startIndex + itemsPerShelf);
+                    
+                    // Parallelize image fetching for this shelf
+                    const buildShelfItems = async () => {
+                        const itemPromises = shelfItems.map(async (item, i) => {
+                            const texData = await loadTexture(item.Id);
+                            
+                            let frontMat, backTex, spineTex;
+                            if (texData) {
+                                frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
+                                backTex = createBackCoverTexture(item, texData.palette);
+                                spineTex = createSpineTexture(item, texData.palette);
+                            } else {
+                                frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
+                                backTex = createBackCoverTexture(item);
+                                spineTex = createSpineTexture(item);
+                            }
+                            
+                            const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.5 });
+                            const spineMat = new THREE.MeshStandardMaterial({ map: spineTex, roughness: 0.5 });
+                            
+                            const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
+                            
+                            const xPos = (i - shelfItems.length / 2) * 1.2 + 0.6;
+                            caseMesh.position.set(xPos, shelfHeights[s], side * 0.8);
+                            
+                            if (side === -1) {
+                                caseMesh.rotation.y = Math.PI;
+                                caseMesh.rotation.x = 0.1;
+                            } else {
+                                caseMesh.rotation.x = -0.1;
+                            }
+                            
+                            caseMesh.userData = { id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
+                            gondola.add(caseMesh);
+                            interactableMeshes.push(caseMesh);
+                        });
+                        await Promise.all(itemPromises);
+                    };
+                    shelfPromises.push(buildShelfItems());
                 }
             }
+            
+            await Promise.all(shelfPromises);
+        }
 
-            // Build 3 shelves and wait for all to finish
-            const fields = '&Fields=Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
-            await Promise.all([
-                buildShelf("Latest Movies", `/Users/${jfUserId}/Items/Latest?IncludeItemTypes=Movie&Limit=20${fields}`, 4),
-                buildShelf("Continue Watching", `/Users/${jfUserId}/Items/Resume?Limit=20${fields}`, 2),
-                buildShelf("My Requests", `/HomeScreen/Section/MyJellyseerrRequests?userId=${jfUserId}${fields}`, 0)
-            ]);
+            // --- Navigation Nodes (Predetermined Standing Spots) ---
+            const nodes = [];
+            const nodeGeo = new THREE.RingGeometry(0.6, 0.8, 32); // A ring looks more like a modern UI marker
+            nodeGeo.rotateX(-Math.PI / 2);
+            
+            for (let z of [14, 7, 0, -7, -14]) {
+                const nodeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+                const node = new THREE.Mesh(nodeGeo, nodeMat);
+                node.position.set(0, -1.48, z);
+                node.userData = { isNode: true, targetZ: z };
+                scene.add(node);
+                interactableMeshes.push(node);
+                nodes.push(node);
+            }
 
-            // Hide loading screen once all data is bound and meshes created
-            loadingScreen.style.opacity = '0';
-            setTimeout(() => loadingScreen.style.display = 'none', 500);
+            let targetCameraZ = 14;
+            let currentCameraZ = 14;
+            
+            // Camera Rotation (Gyroscopic/Drag)
+            let cameraYaw = 0;
+            let cameraPitch = -0.3; // Start with a downward tilt to look at the shelves from above
+            camera.rotation.order = 'YXZ'; // Important for FPS-style rotation
+            camera.rotation.y = cameraYaw;
+            camera.rotation.x = cameraPitch;
 
-            // --- Rail Navigation ---
-            let targetCameraX = 0;
-            let currentCameraX = 0;
-            const minX = -10;
-            const maxX = 10;
-
-            window.addEventListener('wheel', (e) => {
-                targetCameraX += e.deltaY * 0.01;
-                targetCameraX = Math.max(minX, Math.min(maxX, targetCameraX));
-            });
-
-            let touchStartX = 0;
-            window.addEventListener('touchstart', (e) => {
-                touchStartX = e.touches[0].clientX;
-            }, { passive: true });
-
-            window.addEventListener('touchmove', (e) => {
-                const deltaX = touchStartX - e.touches[0].clientX;
-                targetCameraX += deltaX * 0.02;
-                targetCameraX = Math.max(minX, Math.min(maxX, targetCameraX));
-                touchStartX = e.touches[0].clientX;
-            }, { passive: true });
 
             // --- State Machine & Inspection ---
             const STATE = { BROWSE: 0, INSPECT: 1 };
@@ -449,97 +623,108 @@
             const mouse = new THREE.Vector2();
             let hoveredMesh = null;
 
-            // Inspect Dragging & Click Logic
+            // --- Input Handling (Gyroscopic Look, Inspect, Move) ---
             let isDragging = false;
             let dragDistance = 0;
             let previousMousePosition = { x: 0, y: 0 };
             let targetRotationY = 0;
 
-            window.addEventListener('mousedown', (e) => {
-                if (currentState === STATE.INSPECT) {
-                    isDragging = true;
-                    dragDistance = 0;
-                    previousMousePosition = { x: e.clientX, y: e.clientY };
-                    if (inspectedMesh) targetRotationY = inspectedMesh.rotation.y;
+            function onPointerDown(clientX, clientY) {
+                isDragging = true;
+                dragDistance = 0;
+                previousMousePosition = { x: clientX, y: clientY };
+                if (currentState === STATE.INSPECT && inspectedMesh) {
+                    targetRotationY = inspectedMesh.rotation.y;
                     document.body.style.cursor = 'grabbing';
                 }
-            });
-            window.addEventListener('mouseup', () => {
-                isDragging = false;
-                if (currentState === STATE.INSPECT) {
-                    document.body.style.cursor = 'grab';
-                    // Snap to nearest half-turn (front or back)
-                    if (inspectedMesh) {
-                        const halfTurns = Math.round(targetRotationY / Math.PI);
-                        targetRotationY = halfTurns * Math.PI;
+            }
+
+            function onPointerMove(clientX, clientY) {
+                mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+                if (isDragging) {
+                    const deltaX = clientX - previousMousePosition.x;
+                    const deltaY = clientY - previousMousePosition.y;
+                    dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
+                    
+                    if (currentState === STATE.INSPECT && inspectedMesh) {
+                        targetRotationY += deltaX * 0.01;
+                    } else if (currentState === STATE.BROWSE) {
+                        cameraYaw += deltaX * 0.005;
+                        cameraPitch += deltaY * 0.005;
+                        cameraPitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, cameraPitch));
+                        camera.rotation.y = cameraYaw;
+                        camera.rotation.x = cameraPitch;
                     }
+                    previousMousePosition = { x: clientX, y: clientY };
                 }
-            });
-            window.addEventListener('mousemove', (e) => {
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            }
 
-                if (currentState === STATE.INSPECT && isDragging && inspectedMesh) {
-                    const deltaX = e.clientX - previousMousePosition.x;
-                    dragDistance += Math.abs(deltaX);
-                    targetRotationY += deltaX * 0.01;
-                    previousMousePosition = { x: e.clientX, y: e.clientY };
-                }
-            });
-
-            // Touch inspect dragging
-            window.addEventListener('touchstart', (e) => {
-                if (currentState === STATE.INSPECT) {
-                    isDragging = true;
-                    dragDistance = 0;
-                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                    if (inspectedMesh) targetRotationY = inspectedMesh.rotation.y;
-                }
-            }, { passive: true });
-
-            window.addEventListener('touchmove', (e) => {
-                if (currentState === STATE.INSPECT && isDragging && inspectedMesh) {
-                    const deltaX = e.touches[0].clientX - previousMousePosition.x;
-                    dragDistance += Math.abs(deltaX);
-                    targetRotationY += deltaX * 0.01;
-                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                }
-            }, { passive: true });
-
-            window.addEventListener('touchend', () => {
+            function onPointerUp() {
                 isDragging = false;
                 if (currentState === STATE.INSPECT && inspectedMesh) {
+                    document.body.style.cursor = 'grab';
                     const halfTurns = Math.round(targetRotationY / Math.PI);
                     targetRotationY = halfTurns * Math.PI;
                 }
-            });
+            }
+
+            window.addEventListener('mousedown', (e) => onPointerDown(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
+            window.addEventListener('mouseup', onPointerUp);
+            
+            window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+            window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+            window.addEventListener('touchend', onPointerUp);
 
             window.addEventListener('click', (e) => {
                 if (currentState === STATE.BROWSE) {
+                    if (dragDistance > 10) return; // It was a pan, not a click
+
                     if (hoveredMesh && hoveredMesh.userData) {
-                        currentState = STATE.INSPECT;
-                        inspectedMesh = hoveredMesh;
-                        originalPosition.copy(inspectedMesh.position);
-                        originalRotation.copy(inspectedMesh.rotation);
+                        if (hoveredMesh.userData.isNode) {
+                            // Clicked a floor node to walk
+                            targetCameraZ = hoveredMesh.userData.targetZ;
+                        } else if (hoveredMesh.userData.isCase) {
+                            // Clicked a movie to inspect
+                            currentState = STATE.INSPECT;
+                            inspectedMesh = hoveredMesh;
+                            
+                            originalPosition.copy(inspectedMesh.position);
+                            originalRotation.copy(inspectedMesh.rotation);
+                            inspectedMesh.userData.originalParent = inspectedMesh.parent;
+                            
+                            scene.attach(inspectedMesh);
 
-                        const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y + 0.05, camera.position.z - 2);
-                        inspectedMesh.parent.worldToLocal(targetWorldPos);
+                            const targetWorldPos = new THREE.Vector3();
+                            targetWorldPos.copy(camera.position);
+                            // Move it forward relative to camera's current rotation
+                            const forward = new THREE.Vector3(0, 0, -2);
+                            forward.applyQuaternion(camera.quaternion);
+                            targetWorldPos.add(forward);
+                            
+                            // Align rotation perfectly with camera
+                            inspectedMesh.position.copy(targetWorldPos);
+                            inspectedMesh.rotation.copy(camera.rotation);
+                            
+                            targetRotationY = inspectedMesh.rotation.y;
 
-                        inspectedMesh.position.copy(targetWorldPos);
-                        inspectedMesh.rotation.set(0, 0, 0);
-                        targetRotationY = 0; // Reset target rotation
-
-                        selectedItem = inspectedMesh.userData;
-                        hudTitle.innerText = selectedItem.name;
-                        hud.classList.add('show');
-                        document.body.style.cursor = 'grab';
+                            selectedItem = inspectedMesh.userData;
+                            hudTitle.innerText = selectedItem.title || selectedItem.name;
+                            hud.classList.add('show');
+                            document.body.style.cursor = 'grab';
+                        }
                     }
                 } else if (currentState === STATE.INSPECT) {
                     if (dragDistance > 10) return;
 
                     currentState = STATE.BROWSE;
+                    
+                    inspectedMesh.userData.originalParent.attach(inspectedMesh);
                     inspectedMesh.position.copy(originalPosition);
                     inspectedMesh.rotation.copy(originalRotation);
+                    
                     inspectedMesh = null;
                     selectedItem = null;
                     hud.classList.remove('show');
@@ -559,8 +744,8 @@
                 rafId = requestAnimationFrame(animate);
 
                 if (currentState === STATE.BROWSE) {
-                    currentCameraX += (targetCameraX - currentCameraX) * 0.1;
-                    camera.position.x = currentCameraX;
+                    currentCameraZ += (targetCameraZ - currentCameraZ) * 0.1;
+                    camera.position.z = currentCameraZ;
 
                     raycaster.setFromCamera(mouse, camera);
                     const intersects = raycaster.intersectObjects(interactableMeshes);
@@ -568,23 +753,44 @@
                     if (intersects.length > 0) {
                         const hit = intersects[0].object;
                         if (hoveredMesh !== hit) {
-                            if (hoveredMesh) hoveredMesh.position.z = 0;
+                            // Reset previous hovered mesh
+                            if (hoveredMesh) {
+                                if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
+                                else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.2;
+                            }
+                            
+                            // Set new hovered mesh
                             hoveredMesh = hit;
-                            hoveredMesh.position.z = 0.2;
+                            if (hoveredMesh.userData.isCase) {
+                                hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
+                                hoveredMesh.translateZ(0.2); // Pops out locally from gondola
+                            }
+                            else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.6;
+                            
                             document.body.style.cursor = 'pointer';
                         }
                     } else if (hoveredMesh !== null) {
-                        hoveredMesh.position.z = 0;
+                        if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
+                        else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.2;
                         hoveredMesh = null;
                         document.body.style.cursor = 'default';
                     }
                 } else if (currentState === STATE.INSPECT && inspectedMesh) {
-                    const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y + 0.05, camera.position.z - 2);
-                    inspectedMesh.parent.worldToLocal(targetWorldPos);
-                    inspectedMesh.position.x = targetWorldPos.x;
+                    // Lock position relative to camera in world space
+                    const targetWorldPos = new THREE.Vector3();
+                    targetWorldPos.copy(camera.position);
+                    const forward = new THREE.Vector3(0, 0, -2);
+                    forward.applyQuaternion(camera.quaternion);
+                    targetWorldPos.add(forward);
+                    
+                    inspectedMesh.position.copy(targetWorldPos);
 
                     // Smoothly interpolate rotation to target
                     inspectedMesh.rotation.y += (targetRotationY - inspectedMesh.rotation.y) * 0.1;
+                    
+                    // Keep pitch locked to camera
+                    inspectedMesh.rotation.x = camera.rotation.x;
+                    inspectedMesh.rotation.z = camera.rotation.z;
                 }
 
                 renderer.render(scene, camera);
