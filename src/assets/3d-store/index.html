@@ -15,19 +15,53 @@
         }
         #hud {
             position: absolute;
-            bottom: 20px;
+            bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 20;
-            background: rgba(12, 12, 14, 0.8);
-            border: 1px solid rgba(244, 241, 234, 0.2);
-            padding: 20px;
-            border-radius: 10px;
+            background: #4b0082; /* Purple */
+            border: 4px solid #FDDA0D; /* Yellow */
+            padding: 20px 40px;
+            border-radius: 12px;
             text-align: center;
             display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         #hud.show {
             display: block;
+        }
+        #hud-title {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            font-weight: 800;
+            font-style: italic;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            max-width: 400px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #hud-play {
+            background: #FDDA0D;
+            color: #4b0082;
+            border: none;
+            padding: 12px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            font-style: italic;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: transform 0.1s, background 0.2s;
+        }
+        #hud-play:hover {
+            background: #fff04d;
+            transform: scale(1.05);
+        }
+        #hud-play:active {
+            transform: scale(0.95);
         }
         #loading-screen {
             position: absolute;
