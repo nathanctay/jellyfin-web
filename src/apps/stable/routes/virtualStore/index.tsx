@@ -10,6 +10,14 @@ export default function VirtualStore() {
     
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
+            if (event.data && event.data.type === 'EXIT') {
+                if (window.history.length > 2) {
+                    navigate(-1);
+                } else {
+                    navigate('/home');
+                }
+                return;
+            }
             if (event.data && event.data.type === 'OPEN_DETAILS') {
                 navigate(`/details?id=${event.data.payload.itemId}`);
                 return;
