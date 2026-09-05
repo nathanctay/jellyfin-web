@@ -241,14 +241,96 @@
 
             // --- Exit Doorway ---
             const doorGroup = new THREE.Group();
-            doorGroup.position.set(0, 2.5, 32.4); // Placed flush against the front wall
+            doorGroup.position.set(0, 5.3, 32.4); // Placed flush against the front wall
+            doorGroup.scale.set(1.6, 1.6, 1.6); // Scaled up so it doesn't look like a hobbit door!
             
-            // Glass Doors
-            const doorGeo = new THREE.BoxGeometry(10, 8, 0.2);
-            const doorMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.8 });
-            const doors = new THREE.Mesh(doorGeo, doorMat);
-            doors.position.set(0, 0, 0);
-            doorGroup.add(doors);
+            // Stylized Comic-Book Glass Texture
+            function createGlassTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 1024;
+                const ctx = canvas.getContext('2d');
+                
+                // Light sky blue base
+                ctx.fillStyle = '#9bd4f5'; 
+                ctx.fillRect(0, 0, 512, 1024);
+                
+                // Diagonal shines (Bottom-Left to Top-Right)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                
+                // Thick stripe
+                ctx.beginPath();
+                ctx.moveTo(0, 800); ctx.lineTo(512, 100);
+                ctx.lineTo(512, 400); ctx.lineTo(0, 1100);
+                ctx.fill();
+                
+                // Thin stripe
+                ctx.beginPath();
+                ctx.moveTo(0, 400); ctx.lineTo(512, -300);
+                ctx.lineTo(512, -150); ctx.lineTo(0, 550);
+                ctx.fill();
+
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.4 });
+            const glassMat = new THREE.MeshBasicMaterial({ map: createGlassTexture() });
+            
+            // Hollow Outer Frame
+            const frameSideGeo = new THREE.BoxGeometry(0.5, 8.5, 0.4);
+            const frameTopGeo = new THREE.BoxGeometry(10.5, 0.5, 0.4);
+            const outerL = new THREE.Mesh(frameSideGeo, frameMat); outerL.position.set(-5, 0, 0); doorGroup.add(outerL);
+            const outerR = new THREE.Mesh(frameSideGeo, frameMat); outerR.position.set(5, 0, 0); doorGroup.add(outerR);
+            const outerT = new THREE.Mesh(frameTopGeo, frameMat); outerT.position.set(0, 4, 0); doorGroup.add(outerT);
+            const outerB = new THREE.Mesh(frameTopGeo, frameMat); outerB.position.set(0, -4, 0); doorGroup.add(outerB);
+            
+            // Glass Panel Geo
+            const glassGeo = new THREE.BoxGeometry(4.6, 7.8, 0.1);
+            const innerSideGeo = new THREE.BoxGeometry(0.2, 8, 0.2);
+            const innerTopGeo = new THREE.BoxGeometry(5, 0.2, 0.2);
+            const barGeo = new THREE.BoxGeometry(4.6, 0.1, 0.15);
+            
+            // Left Sliding Door
+            const leftDoor = new THREE.Group();
+            leftDoor.position.set(-2.4, -0.1, -0.05);
+            leftDoor.add(new THREE.Mesh(glassGeo, glassMat));
+            
+            const lFrameL = new THREE.Mesh(innerSideGeo, frameMat); lFrameL.position.set(-2.4, 0, 0); leftDoor.add(lFrameL);
+            const lFrameR = new THREE.Mesh(innerSideGeo, frameMat); lFrameR.position.set(2.4, 0, 0); leftDoor.add(lFrameR);
+            const lFrameT = new THREE.Mesh(innerTopGeo, frameMat); lFrameT.position.set(0, 3.9, 0); leftDoor.add(lFrameT);
+            const lFrameB = new THREE.Mesh(innerTopGeo, frameMat); lFrameB.position.set(0, -3.9, 0); leftDoor.add(lFrameB);
+            const lBar = new THREE.Mesh(barGeo, frameMat); lBar.position.set(0, -0.5, 0); leftDoor.add(lBar);
+            doorGroup.add(leftDoor);
+            
+            // Right Sliding Door
+            const rightDoor = new THREE.Group();
+            rightDoor.position.set(2.4, -0.1, 0.05); // Offset Z slightly for sliding overlap
+            rightDoor.add(new THREE.Mesh(glassGeo, glassMat));
+            
+            const rFrameL = new THREE.Mesh(innerSideGeo, frameMat); rFrameL.position.set(-2.4, 0, 0); rightDoor.add(rFrameL);
+            const rFrameR = new THREE.Mesh(innerSideGeo, frameMat); rFrameR.position.set(2.4, 0, 0); rightDoor.add(rFrameR);
+            const rFrameT = new THREE.Mesh(innerTopGeo, frameMat); rFrameT.position.set(0, 3.9, 0); rightDoor.add(rFrameT);
+            const rFrameB = new THREE.Mesh(innerTopGeo, frameMat); rFrameB.position.set(0, -3.9, 0); rightDoor.add(rFrameB);
+            const rBar = new THREE.Mesh(barGeo, frameMat); rBar.position.set(0, -0.5, 0); rightDoor.add(rBar);
+            doorGroup.add(rightDoor);
+
+            // Decals
+            function createDecalTex(text1, text2, bgColor) {
+                const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = bgColor; ctx.fillRect(20,20,216,216);
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 10; ctx.strokeRect(30,30,196,196);
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 36px "Helvetica Neue", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(text1, 128, 110); ctx.fillText(text2, 128, 160);
+                const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+            }
+            const decalGeo = new THREE.PlaneGeometry(1, 1);
+            const decal1Mat = new THREE.MeshBasicMaterial({ map: createDecalTex('BE KIND', 'REWIND', '#e94560'), transparent: true, side: THREE.DoubleSide });
+            const decal2Mat = new THREE.MeshBasicMaterial({ map: createDecalTex('NO FOOD', 'OR DRINK', '#0f3460'), transparent: true, side: THREE.DoubleSide });
+            
+            const decal1 = new THREE.Mesh(decalGeo, decal1Mat); decal1.position.set(0, 1.5, -0.06); decal1.rotation.y = Math.PI; leftDoor.add(decal1);
+            const decal2 = new THREE.Mesh(decalGeo, decal2Mat); decal2.position.set(0, 1.5, -0.06); decal2.rotation.y = Math.PI; rightDoor.add(decal2);
             
             // Glowing Exit Sign (Red Canvas)
             const exitCanvas = document.createElement('canvas');
@@ -259,18 +341,35 @@
             exitCtx.fillText('EXIT', 128, 90);
             const exitTex = new THREE.Texture(exitCanvas); exitTex.needsUpdate = true;
             
-            const exitSignGeo = new THREE.BoxGeometry(3, 1.5, 0.3);
-            const exitSignMat = new THREE.MeshBasicMaterial({ map: exitTex, color: 0xffffff }); // Basic material glows in the dark
+            const exitSignGeo = new THREE.BoxGeometry(3, 1.2, 0.3);
+            const exitSignMat = new THREE.MeshStandardMaterial({ 
+                map: exitTex, 
+                emissiveMap: exitTex,
+                emissive: 0xff0000, // Red glow
+                emissiveIntensity: 0.8,
+                color: 0xffffff 
+            });
             const exitSign = new THREE.Mesh(exitSignGeo, exitSignMat);
             exitSign.position.set(0, 5, 0);
             doorGroup.add(exitSign);
+            
+            // Add a red PointLight so the exit sign physically casts red light onto the floor and doors!
+            const exitLight = new THREE.PointLight(0xff0000, 0.6, 15);
+            exitLight.position.set(0, 4.5, -1);
+            doorGroup.add(exitLight);
             
             scene.add(doorGroup);
 
             const interactableMeshes = [];
             
-            doors.userData = { isExit: true };
-            interactableMeshes.push(doors);
+            // Invisible HitBox so the entire doorway is perfectly clickable
+            const hitBoxGeo = new THREE.BoxGeometry(10, 8, 1);
+            const hitBoxMat = new THREE.MeshBasicMaterial({ visible: false });
+            const doorsHitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
+            doorsHitBox.position.set(0, 0, 0);
+            doorsHitBox.userData = { isExit: true };
+            doorGroup.add(doorsHitBox);
+            interactableMeshes.push(doorsHitBox);
 
             // Polyfill for CanvasRenderingContext2D.roundRect
             CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
