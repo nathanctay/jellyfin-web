@@ -146,7 +146,7 @@
             document.body.appendChild(renderer.domElement);
 
             // Standard "Retail" Lighting (Bright and even)
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
             const overheadLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -159,11 +159,11 @@
                 canvas.width = 512;
                 canvas.height = 512;
                 const ctx = canvas.getContext('2d');
-                
+
                 // Dark indigo base
-                ctx.fillStyle = '#161625'; 
+                ctx.fillStyle = '#161625';
                 ctx.fillRect(0, 0, 512, 512);
-                
+
                 // Static noise to simulate carpet threads
                 const imgData = ctx.getImageData(0, 0, 512, 512);
                 const data = imgData.data;
@@ -217,14 +217,14 @@
             // Physical Store Room
             // Floor
             const floorGeo = new THREE.PlaneGeometry(100, 100);
-            const floorMat = new THREE.MeshStandardMaterial({ 
+            const floorMat = new THREE.MeshStandardMaterial({
                 map: createFloorTexture(),
-                roughness: 0.8, 
-                metalness: 0.0 
+                roughness: 0.8,
+                metalness: 0.0
             });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.set(0, -1.49, 0); 
+            floor.position.set(0, -1.49, 0);
             scene.add(floor);
 
             // Walls and Ceiling
@@ -232,37 +232,37 @@
             const ceilingMat = new THREE.MeshStandardMaterial({ map: createCeilingTexture(), roughness: 1.0, side: THREE.BackSide });
             // BoxGeometry materials: Right, Left, Top, Bottom, Front, Back
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
-            
-            // Restored ceiling to 16 so it doesn't cut off gondola signs
-            const wallsGeo = new THREE.BoxGeometry(50, 16, 65);
+
+            // Raised ceiling slightly to give the exit sign more breathing room
+            const wallsGeo = new THREE.BoxGeometry(50, 17.2, 65);
             const walls = new THREE.Mesh(wallsGeo, roomMats);
-            walls.position.set(0, 6.5, 0); 
+            walls.position.set(0, 7.1, 0);
             scene.add(walls);
 
             // --- Exit Doorway ---
             const doorGroup = new THREE.Group();
             doorGroup.position.set(0, 5.3, 32.4); // Placed flush against the front wall
-            doorGroup.scale.set(1.6, 1.6, 1.6); // Scaled up so it doesn't look like a hobbit door!
-            
+            doorGroup.scale.set(1.44, 1.6, 1.6); // Made 10% thinner to leave room for wall posters
+
             // Stylized Comic-Book Glass Texture
             function createGlassTexture() {
                 const canvas = document.createElement('canvas');
                 canvas.width = 512; canvas.height = 1024;
                 const ctx = canvas.getContext('2d');
-                
+
                 // Light sky blue base
-                ctx.fillStyle = '#9bd4f5'; 
+                ctx.fillStyle = '#9bd4f5';
                 ctx.fillRect(0, 0, 512, 1024);
-                
+
                 // Diagonal shines (Bottom-Left to Top-Right)
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                
+
                 // Thick stripe
                 ctx.beginPath();
                 ctx.moveTo(0, 800); ctx.lineTo(512, 100);
                 ctx.lineTo(512, 400); ctx.lineTo(0, 1100);
                 ctx.fill();
-                
+
                 // Thin stripe
                 ctx.beginPath();
                 ctx.moveTo(0, 400); ctx.lineTo(512, -300);
@@ -276,7 +276,7 @@
 
             const frameMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.4 });
             const glassMat = new THREE.MeshBasicMaterial({ map: createGlassTexture() });
-            
+
             // Hollow Outer Frame
             const frameSideGeo = new THREE.BoxGeometry(0.5, 8.5, 0.4);
             const frameTopGeo = new THREE.BoxGeometry(10.5, 0.5, 0.4);
@@ -284,30 +284,30 @@
             const outerR = new THREE.Mesh(frameSideGeo, frameMat); outerR.position.set(5, 0, 0); doorGroup.add(outerR);
             const outerT = new THREE.Mesh(frameTopGeo, frameMat); outerT.position.set(0, 4, 0); doorGroup.add(outerT);
             const outerB = new THREE.Mesh(frameTopGeo, frameMat); outerB.position.set(0, -4, 0); doorGroup.add(outerB);
-            
+
             // Glass Panel Geo
             const glassGeo = new THREE.BoxGeometry(4.6, 7.8, 0.1);
             const innerSideGeo = new THREE.BoxGeometry(0.2, 8, 0.2);
             const innerTopGeo = new THREE.BoxGeometry(5, 0.2, 0.2);
             const barGeo = new THREE.BoxGeometry(4.6, 0.1, 0.15);
-            
+
             // Left Sliding Door
             const leftDoor = new THREE.Group();
             leftDoor.position.set(-2.4, -0.1, -0.05);
             leftDoor.add(new THREE.Mesh(glassGeo, glassMat));
-            
+
             const lFrameL = new THREE.Mesh(innerSideGeo, frameMat); lFrameL.position.set(-2.4, 0, 0); leftDoor.add(lFrameL);
             const lFrameR = new THREE.Mesh(innerSideGeo, frameMat); lFrameR.position.set(2.4, 0, 0); leftDoor.add(lFrameR);
             const lFrameT = new THREE.Mesh(innerTopGeo, frameMat); lFrameT.position.set(0, 3.9, 0); leftDoor.add(lFrameT);
             const lFrameB = new THREE.Mesh(innerTopGeo, frameMat); lFrameB.position.set(0, -3.9, 0); leftDoor.add(lFrameB);
             const lBar = new THREE.Mesh(barGeo, frameMat); lBar.position.set(0, -0.5, 0); leftDoor.add(lBar);
             doorGroup.add(leftDoor);
-            
+
             // Right Sliding Door
             const rightDoor = new THREE.Group();
             rightDoor.position.set(2.4, -0.1, 0.05); // Offset Z slightly for sliding overlap
             rightDoor.add(new THREE.Mesh(glassGeo, glassMat));
-            
+
             const rFrameL = new THREE.Mesh(innerSideGeo, frameMat); rFrameL.position.set(-2.4, 0, 0); rightDoor.add(rFrameL);
             const rFrameR = new THREE.Mesh(innerSideGeo, frameMat); rFrameR.position.set(2.4, 0, 0); rightDoor.add(rFrameR);
             const rFrameT = new THREE.Mesh(innerTopGeo, frameMat); rFrameT.position.set(0, 3.9, 0); rightDoor.add(rFrameT);
@@ -328,10 +328,10 @@
             const decalGeo = new THREE.PlaneGeometry(1, 1);
             const decal1Mat = new THREE.MeshBasicMaterial({ map: createDecalTex('BE KIND', 'REWIND', '#e94560'), transparent: true, side: THREE.DoubleSide });
             const decal2Mat = new THREE.MeshBasicMaterial({ map: createDecalTex('NO FOOD', 'OR DRINK', '#0f3460'), transparent: true, side: THREE.DoubleSide });
-            
+
             const decal1 = new THREE.Mesh(decalGeo, decal1Mat); decal1.position.set(0, 1.5, -0.06); decal1.rotation.y = Math.PI; leftDoor.add(decal1);
             const decal2 = new THREE.Mesh(decalGeo, decal2Mat); decal2.position.set(0, 1.5, -0.06); decal2.rotation.y = Math.PI; rightDoor.add(decal2);
-            
+
             // Glowing Exit Sign (Red Canvas)
             const exitCanvas = document.createElement('canvas');
             exitCanvas.width = 256; exitCanvas.height = 128;
@@ -340,28 +340,28 @@
             exitCtx.fillStyle = '#ffffff'; exitCtx.font = 'bold 70px "Helvetica Neue", sans-serif'; exitCtx.textAlign = 'center';
             exitCtx.fillText('EXIT', 128, 90);
             const exitTex = new THREE.Texture(exitCanvas); exitTex.needsUpdate = true;
-            
+
             const exitSignGeo = new THREE.BoxGeometry(3, 1.2, 0.3);
-            const exitSignMat = new THREE.MeshStandardMaterial({ 
-                map: exitTex, 
+            const exitSignMat = new THREE.MeshStandardMaterial({
+                map: exitTex,
                 emissiveMap: exitTex,
                 emissive: 0xff0000, // Red glow
                 emissiveIntensity: 0.8,
-                color: 0xffffff 
+                color: 0xffffff
             });
             const exitSign = new THREE.Mesh(exitSignGeo, exitSignMat);
             exitSign.position.set(0, 5, 0);
             doorGroup.add(exitSign);
-            
+
             // Add a red PointLight so the exit sign physically casts red light onto the floor and doors!
             const exitLight = new THREE.PointLight(0xff0000, 0.6, 15);
             exitLight.position.set(0, 4.5, -1);
             doorGroup.add(exitLight);
-            
+
             scene.add(doorGroup);
 
             const interactableMeshes = [];
-            
+
             // Invisible HitBox so the entire doorway is perfectly clickable
             const hitBoxGeo = new THREE.BoxGeometry(10, 8, 1);
             const hitBoxMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -506,7 +506,7 @@
                 // Sticker at Top
                 ctx.fillStyle = '#f5c518'; // Yellow
                 ctx.fillRect(0, 0, canvas.width, 100);
-                
+
                 // Sticker Text (Rotated slightly or stacked)
                 ctx.fillStyle = '#111111';
                 ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
@@ -518,12 +518,12 @@
                 ctx.save();
                 ctx.translate(canvas.width / 2, 160); // Start below the sticker
                 ctx.rotate(Math.PI / 2); // Rotate 90 degrees clockwise
-                
+
                 ctx.fillStyle = palette.text;
                 ctx.font = 'bold 36px "Helvetica Neue", sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                
+
                 // Truncate if too long (roughly 750px width available when rotated)
                 let title = item.Name || 'Unknown Title';
                 if (ctx.measureText(title).width > 750) {
@@ -532,7 +532,7 @@
                     }
                     title += '...';
                 }
-                
+
                 ctx.fillText(title, 0, 0);
                 ctx.restore();
 
@@ -548,7 +548,7 @@
                     this.current = 0;
                     this.queue = [];
                 }
-                
+
                 async acquire() {
                     if (this.current < this.max) {
                         this.current++;
@@ -556,7 +556,7 @@
                     }
                     return new Promise(resolve => this.queue.push(resolve));
                 }
-                
+
                 release() {
                     this.current--;
                     if (this.queue.length > 0) {
@@ -567,7 +567,7 @@
             }
 
             // Optimized for Cloudflare HTTP/2 multiplexing in production
-            const textureSemaphore = new Semaphore(100); 
+            const textureSemaphore = new Semaphore(100);
             const textureCache = new Map();
 
             // Helper to fetch images and extract average color
@@ -577,12 +577,12 @@
                 if (textureCache.has(itemId)) {
                     return textureCache.get(itemId);
                 }
-                
+
                 // Create the promise and store it in the cache BEFORE awaiting anything!
                 // This prevents duplicate concurrent fetches for the same movie across different shelves.
                 const promise = (async () => {
                     await textureSemaphore.acquire();
-                    
+
                     try {
                         const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=256&quality=80`;
                         const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
@@ -593,7 +593,7 @@
                         const tex = new THREE.Texture(bmp);
                         tex.colorSpace = THREE.SRGBColorSpace;
                         tex.needsUpdate = true;
-                        
+
                         return { texture: tex, bitmap: bmp };
                     } catch (e) {
                         return null;
@@ -601,7 +601,7 @@
                         textureSemaphore.release();
                     }
                 })();
-                
+
                 textureCache.set(itemId, promise);
                 return promise;
             }
@@ -611,7 +611,7 @@
             try {
                 const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
                 const fields = 'Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
-                
+
                 function shuffleArray(array) {
                     for (let i = array.length - 1; i > 0; i--) {
                         const j = Math.floor(Math.random() * (i + 1));
@@ -642,7 +642,7 @@
 
                 let lists;
                 const cachedData = sessionStorage.getItem('virtualStoreCache');
-                
+
                 if (cachedData) {
                     lists = JSON.parse(cachedData);
                 } else {
@@ -664,15 +664,15 @@
                         const dataUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=${limit}&StartIndex=${startIndex}${sortParam}&Fields=${fields}${genreParam}`;
                         const res = await fetch(dataUrl, { headers: { 'X-Emby-Token': jfToken } });
                         const data = await res.json();
-                        
+
                         let items = extractItems(data);
                         return shuffleArray(items);
                     });
-                    
+
                     lists = await Promise.all(catPromises);
                     sessionStorage.setItem('virtualStoreCache', JSON.stringify(lists));
                 }
-                
+
                 // Fallback list of all movies in case a genre is completely empty on their server
                 const allMovies = lists.flat().filter(m => m !== undefined);
 
@@ -681,26 +681,89 @@
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => loadingScreen.style.display = 'none', 500);
 
+                // --- Build Wall Posters ---
+                function buildWallPosters(movies) {
+                    if (!movies || movies.length === 0) return;
+
+                    const posterPositions = [
+                        // Front Wall (Z = 32.3, looking back into the room -> rotate Math.PI)
+                        { x: -21, z: 32.3, rotY: Math.PI }, // Shifted outwards to clear the door
+                        { x: -13, z: 32.3, rotY: Math.PI },
+                        { x: 13,  z: 32.3, rotY: Math.PI },
+                        { x: 21,  z: 32.3, rotY: Math.PI },
+                        // Side Walls (By the front door)
+                        { x: -24.8, z: 27, rotY: Math.PI / 2 }, // Left Wall
+                        { x: 24.8,  z: 27, rotY: -Math.PI / 2 } // Right Wall
+                    ];
+
+                    // Deterministically pick 6 movies
+                    const selected = [];
+                    const step = Math.max(1, Math.floor(movies.length / posterPositions.length));
+                    for (let i = 0; i < posterPositions.length; i++) selected.push(movies[(i * step) % movies.length]);
+
+                    const posterGeo = new THREE.PlaneGeometry(6, 9);
+                    const frameGeo = new THREE.BoxGeometry(6.4, 9.4, 0.2);
+                    const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.8 });
+
+                    selected.forEach((item, index) => {
+                        const pos = posterPositions[index];
+                        const group = new THREE.Group();
+                        group.position.set(pos.x, 6.5, pos.z);
+                        group.rotation.y = pos.rotY;
+
+                        const frame = new THREE.Mesh(frameGeo, frameMat);
+                        group.add(frame);
+
+                        // Base color MUST be 0xffffff otherwise the loaded texture is multiplied by dark grey!
+                        const posterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+                        const poster = new THREE.Mesh(posterGeo, posterMat);
+                        poster.position.z = 0.12;
+                        group.add(poster);
+
+                        // Add a subtle gallery light pointing down at each poster
+                        const light = new THREE.PointLight(0xffeedd, 0.6, 15);
+                        light.position.set(0, 6, 2); // 6 units above, 2 units out from the wall
+                        group.add(light);
+
+                        scene.add(group);
+
+                        const imgUrl = `${jfServer}/Items/${item.Id}/Images/Primary?maxWidth=1024&quality=90`;
+                        fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                            .then(res => res.blob())
+                            .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                            .then(bmp => {
+                                const tex = new THREE.CanvasTexture(bmp);
+                                tex.colorSpace = THREE.SRGBColorSpace;
+                                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                                poster.material.map = tex;
+                                poster.material.needsUpdate = true;
+                            }).catch(e => console.error(e));
+                    });
+                }
+
                 // The "Back-to-Back E" layout
                 // We order these by proximity to the camera (Z=14) so the semaphore prioritizes the closest movies!
                 await Promise.all([
                     // Front Gondolas (Closest)
                     buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies, categories[5].name, lists[11], categories[11].name),
                     buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies, categories[8].name, lists[14], categories[14].name),
-                    
+
                     // Middle Gondolas
                     buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies, categories[4].name, lists[10], categories[10].name),
                     buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
-                    
+
                     // Back Gondolas
                     buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies, categories[3].name, lists[9], categories[9].name),
                     buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies, categories[6].name, lists[12], categories[12].name),
-                    
+
                     // Outer Walls
                     buildGondola(lists[0], { x: -22, z: -5 }, Math.PI / 2, 50, false, 5, allMovies, categories[0].name), // Left Wall
                     buildGondola(lists[1], { x: 22, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies, categories[1].name), // Right Wall
                     buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies, categories[2].name) // Back Wall
                 ]);
+
+                // Build posters AFTER all gondolas finish loading so it doesn't steal network bandwidth!
+                buildWallPosters(allMovies);
             } catch (e) {
                 console.error("Failed to load store data", e);
                 loadingScreen.innerText = "Error loading store.";
@@ -712,7 +775,7 @@
             if (!itemsFront || !itemsFront.length) itemsFront = fallbackItems;
             if (isDoubleSided && (!itemsBack || !itemsBack.length)) itemsBack = fallbackItems;
             if (!itemsFront || !itemsFront.length) return;
-            
+
             const gondola = new THREE.Group();
             gondola.position.set(position.x, 0, position.z);
             gondola.rotation.y = rotationY;
@@ -742,22 +805,22 @@
                 const signMatFront = new THREE.MeshBasicMaterial({ map: createSignTexture(labelFront) });
                 const signMatBack = labelBack ? new THREE.MeshBasicMaterial({ map: createSignTexture(labelBack) }) : signMatFront;
                 const edgeMat = new THREE.MeshBasicMaterial({ color: 0xFDDA0D });
-                
+
                 // Materials: Right, Left, Top, Bottom, Front (+Z), Back (-Z)
                 const signMats = [edgeMat, edgeMat, edgeMat, edgeMat, signMatFront, signMatBack];
-                
+
                 const signGeo = new THREE.BoxGeometry(6, 1.5, 0.1);
                 const sign = new THREE.Mesh(signGeo, signMats);
-                
+
                 sign.position.set(0, shelfCount * 2 + 1.5, 0);
-                
+
                 const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
                 const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
                 const pole1 = new THREE.Mesh(poleGeo, poleMat);
                 pole1.position.set(-2, shelfCount * 2 + 0.5, 0);
                 const pole2 = new THREE.Mesh(poleGeo, poleMat);
                 pole2.position.set(2, shelfCount * 2 + 0.5, 0);
-                
+
                 gondola.add(sign);
                 gondola.add(pole1);
                 gondola.add(pole2);
@@ -775,14 +838,14 @@
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
             const solidMat = new THREE.MeshStandardMaterial({ color: 0x241407, roughness: 0.6 });
 
-            const itemsPerShelf = Math.floor(length / 1.5); 
+            const itemsPerShelf = Math.floor(length / 1.5);
             const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
             const shelfPromises = [];
 
             for (const side of sides) {
                 const sideItems = side === 1 ? itemsFront : itemsBack;
                 if (!sideItems || !sideItems.length) continue;
-                
+
                 // We start at 0 instead of a random index! The array is ALREADY shuffled by loadData().
                 // If we pick a random index here, returning from BFCache will pick 30 DIFFERENT movies
                 // out of the 100 cached items, defeating the image cache!
@@ -800,36 +863,36 @@
                         shelfItems.push(sideItems[itemIndex % sideItems.length]);
                         itemIndex++;
                     }
-                    
+
                     // Parallelize image fetching for this shelf
                     const buildShelfItems = async () => {
                         const itemPromises = shelfItems.map(async (item, i) => {
                             const texData = await loadTexture(item.Id);
-                            
+
                             let frontMat;
                             if (texData) {
                                 frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
                             } else {
                                 frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
                             }
-                            
+
                             // Use a standard dark color for the shelf. It's barely visible anyway!
                             // Create unique material instances so we can lazily inject textures later on click
                             const backMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
                             const spineMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
-                            
+
                             const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
-                            
+
                             const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
                             caseMesh.position.set(xPos, shelfHeight, side * 0.8);
-                            
+
                             if (side === -1) {
                                 caseMesh.rotation.y = Math.PI;
                                 caseMesh.rotation.x = 0.1;
                             } else {
                                 caseMesh.rotation.x = -0.1;
                             }
-                            
+
                             caseMesh.userData = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
                             gondola.add(caseMesh);
                             interactableMeshes.push(caseMesh);
@@ -839,35 +902,35 @@
                     shelfPromises.push(buildShelfItems());
                 }
             }
-            
+
             await Promise.all(shelfPromises);
         }
 
             // --- Navigation Nodes (Predetermined Standing Spots) ---
             const nodes = [];
-            
+
             // Create a texture that looks like a ring, but applied to a solid plane so the whole square is clickable
             const nodeCanvas = document.createElement('canvas');
             nodeCanvas.width = 128;
             nodeCanvas.height = 128;
             const nodeCtx = nodeCanvas.getContext('2d');
-            
+
             // Faint dark circle background for better visibility
             nodeCtx.fillStyle = 'rgba(0,0,0,0.4)';
             nodeCtx.beginPath();
             nodeCtx.arc(64, 64, 60, 0, Math.PI * 2);
             nodeCtx.fill();
-            
+
             nodeCtx.strokeStyle = '#ffffff';
             nodeCtx.lineWidth = 10;
             nodeCtx.beginPath();
             nodeCtx.arc(64, 64, 48, 0, Math.PI * 2);
             nodeCtx.stroke();
             const nodeTex = new THREE.CanvasTexture(nodeCanvas);
-            
+
             const nodeGeo = new THREE.PlaneGeometry(5, 5); // 5x5 clickable area
             nodeGeo.rotateX(-Math.PI / 2);
-            
+
             const nodePositions = [
                 // Center Aisle
                 {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -23},
@@ -876,7 +939,7 @@
                 // Right Sub-Aisles
                 {x: 14, z: 19}, {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -23}
             ];
-            
+
             for (let pos of nodePositions) {
                 const nodeMat = new THREE.MeshBasicMaterial({ map: nodeTex, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
                 const node = new THREE.Mesh(nodeGeo, nodeMat);
@@ -891,7 +954,7 @@
             let currentCameraX = 0;
             let targetCameraZ = 14;
             let currentCameraZ = 14;
-            
+
             // Camera Rotation (Gyroscopic/Drag)
             let cameraYaw = 0;
             let cameraPitch = -0.3; // Start with a downward tilt to look at the shelves from above
@@ -935,7 +998,7 @@
                     const deltaX = clientX - previousMousePosition.x;
                     const deltaY = clientY - previousMousePosition.y;
                     dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
-                    
+
                     if (currentState === STATE.INSPECT && inspectedMesh) {
                         targetSpin += deltaX * 0.01;
                     } else if (currentState === STATE.BROWSE) {
@@ -961,7 +1024,7 @@
             window.addEventListener('mousedown', (e) => onPointerDown(e.clientX, e.clientY));
             window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
             window.addEventListener('mouseup', onPointerUp);
-            
+
             window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
             window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
             window.addEventListener('touchend', onPointerUp);
@@ -979,20 +1042,20 @@
                             targetCameraX = hoveredMesh.userData.targetX;
                             targetCameraZ = hoveredMesh.userData.targetZ;
                         } else if (hoveredMesh.userData.isCase) {
-                            
+
                             // Check distance
                             const caseWorldPos = new THREE.Vector3();
                             hoveredMesh.getWorldPosition(caseWorldPos);
-                            
+
                             const dx = camera.position.x - caseWorldPos.x;
                             const dz = camera.position.z - caseWorldPos.z;
                             const dist2D = Math.sqrt(dx*dx + dz*dz);
-                            
+
                             if (dist2D > 12) {
                                 // Find where the user should stand to look at this movie (4 units in front of it)
                                 const caseWorldQuat = new THREE.Quaternion();
                                 hoveredMesh.getWorldQuaternion(caseWorldQuat);
-                                const interactionPoint = new THREE.Vector3(0, 0, 4); 
+                                const interactionPoint = new THREE.Vector3(0, 0, 4);
                                 interactionPoint.applyQuaternion(caseWorldQuat);
                                 interactionPoint.add(caseWorldPos);
 
@@ -1014,13 +1077,13 @@
                             // Clicked a movie to inspect (Close enough)
                             currentState = STATE.INSPECT;
                             inspectedMesh = hoveredMesh;
-                            
+
                             // Lazily generate the back and spine textures the very first time the user picks up this specific movie
                             if (!inspectedMesh.userData.hasBackCover) {
                                 const item = inspectedMesh.userData.item;
                                 const bitmap = inspectedMesh.userData.bitmap;
                                 let palette = null;
-                                
+
                                 // Extract color ON DEMAND just for this one movie!
                                 if (bitmap) {
                                     const tinyCanvas = document.createElement('canvas');
@@ -1029,20 +1092,20 @@
                                     const tinyCtx = tinyCanvas.getContext('2d');
                                     tinyCtx.drawImage(bitmap, 0, 0, 16, 16);
                                     const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
-                                    
+
                                     let r = 0, g = 0, b = 0, count = 0;
                                     for (let i = 0; i < pixels.length; i += 4) {
                                         r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; count++;
                                     }
-                                    
+
                                     const avgR = Math.floor(r / count);
                                     const avgG = Math.floor(g / count);
                                     const avgB = Math.floor(b / count);
                                     const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
-                                    
+
                                     const luminance = 0.2126 * (avgR/255) + 0.7152 * (avgG/255) + 0.0722 * (avgB/255);
                                     const isLight = luminance > 0.45;
-                                    
+
                                     palette = {
                                         bg: bgColor,
                                         text: isLight ? '#111111' : '#ffffff',
@@ -1050,10 +1113,10 @@
                                         divider: isLight ? '#999999' : '#333333'
                                     };
                                 }
-                                
+
                                 const backTex = createBackCoverTexture(item, palette);
                                 const spineTex = createSpineTexture(item, palette);
-                                
+
                                 inspectedMesh.material[5].map = backTex;
                                 inspectedMesh.material[5].color.setHex(0xffffff); // Clear color fallback
                                 inspectedMesh.material[5].needsUpdate = true;
@@ -1062,11 +1125,11 @@
                                 inspectedMesh.material[1].needsUpdate = true;
                                 inspectedMesh.userData.hasBackCover = true;
                             }
-                            
+
                             // Temporarily change roughness to matte to prevent glare from washing out the HD cover
                             inspectedMesh.material[4].roughness = 0.9;
                             inspectedMesh.material[4].needsUpdate = true;
-                            
+
                             // High-Res Image Swap
                             if (!inspectedMesh.userData.lowResMap) {
                                 inspectedMesh.userData.lowResMap = inspectedMesh.material[4].map;
@@ -1074,7 +1137,7 @@
                             const currentMesh = inspectedMesh;
                             const itemId = currentMesh.userData.item.Id;
                             const highResUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=1024&quality=90`;
-                            
+
                             fetch(highResUrl, { headers: { 'X-Emby-Token': jfToken } })
                                 .then(res => res.blob())
                                 .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
@@ -1095,17 +1158,17 @@
                                         currentMesh.userData.highResMap = highResTex;
                                     }
                                 }).catch(e => console.error(e));
-                                
+
                             // If it already loaded from a previous inspect, swap it instantly!
                             if (currentMesh.userData.highResMap) {
                                 currentMesh.material[4].map = currentMesh.userData.highResMap;
                                 currentMesh.material[4].needsUpdate = true;
                             }
-                            
+
                             originalPosition.copy(inspectedMesh.position);
                             originalRotation.copy(inspectedMesh.rotation);
                             inspectedMesh.userData.originalParent = inspectedMesh.parent;
-                            
+
                             scene.attach(inspectedMesh);
 
                             const targetWorldPos = new THREE.Vector3();
@@ -1114,11 +1177,11 @@
                             const forward = new THREE.Vector3(0, 0, -2);
                             forward.applyQuaternion(camera.quaternion);
                             targetWorldPos.add(forward);
-                            
+
                             // Align rotation perfectly with camera
                             inspectedMesh.position.copy(targetWorldPos);
                             inspectedMesh.quaternion.copy(camera.quaternion);
-                            
+
                             targetSpin = 0;
                             currentSpin = 0;
 
@@ -1132,20 +1195,20 @@
                     if (dragDistance > 10) return;
 
                     currentState = STATE.BROWSE;
-                    
+
                     if (inspectedMesh.userData.lowResMap) {
                         inspectedMesh.material[4].map = inspectedMesh.userData.lowResMap;
                         inspectedMesh.material[4].needsUpdate = true;
                     }
-                    
+
                     // Restore glossy plastic look for the shelf
                     inspectedMesh.material[4].roughness = 0.2;
                     inspectedMesh.material[4].needsUpdate = true;
-                    
+
                     inspectedMesh.userData.originalParent.attach(inspectedMesh);
                     inspectedMesh.position.copy(originalPosition);
                     inspectedMesh.rotation.copy(originalRotation);
-                    
+
                     inspectedMesh = null;
                     selectedItem = null;
                     hud.classList.remove('show');
@@ -1174,29 +1237,29 @@
 
                     const startRotY = inspectedMesh.rotation.y;
                     // Rotate counter-clockwise so the right edge (cover) swings forward and left
-                    const endRotY = startRotY + Math.PI / 1.2; 
+                    const endRotY = startRotY + Math.PI / 1.2;
                     const startPos = inspectedMesh.position.clone();
-                    
-                    // Move the center of the box to the right and very close to the camera, 
+
+                    // Move the center of the box to the right and very close to the camera,
                     // so the swinging front cover perfectly slices through the viewport!
-                    const targetWorldPos = new THREE.Vector3(1.2, 0, -0.8); 
+                    const targetWorldPos = new THREE.Vector3(1.2, 0, -0.8);
                     targetWorldPos.applyMatrix4(camera.matrixWorld);
 
                     let startTime = null;
-                    const duration = 800; 
-                    
+                    const duration = 800;
+
                     setTimeout(() => overlay.style.opacity = '1', 50);
 
                     function playAnim(time) {
                         if (!startTime) startTime = time;
                         const progress = Math.min((time - startTime) / duration, 1);
-                        
+
                         // Smooth cubic ease for a cinematic feel
-                        const ease = progress * progress * (3 - 2 * progress); 
-                        
+                        const ease = progress * progress * (3 - 2 * progress);
+
                         inspectedMesh.rotation.y = startRotY + (endRotY - startRotY) * ease;
                         inspectedMesh.position.lerpVectors(startPos, targetWorldPos, ease);
-                        
+
                         if (progress < 1) {
                             requestAnimationFrame(playAnim);
                         } else {
@@ -1229,7 +1292,7 @@
                                 else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
                                 else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.3;
                             }
-                            
+
                             // Set new hovered mesh
                             hoveredMesh = hit;
                             if (hoveredMesh.userData.isCase) {
@@ -1263,15 +1326,15 @@
                     const forward = new THREE.Vector3(0, 0, -2);
                     forward.applyQuaternion(camera.quaternion);
                     targetWorldPos.add(forward);
-                    
+
                     inspectedMesh.position.copy(targetWorldPos);
 
                     // Smoothly interpolate rotation to target
                     currentSpin += (targetSpin - currentSpin) * 0.1;
-                    
+
                     const baseQuat = new THREE.Quaternion().copy(camera.quaternion);
                     const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), currentSpin);
-                    
+
                     // Multiply them: this perfectly spins the movie on its vertical axis RELATIVE to the screen
                     inspectedMesh.quaternion.copy(baseQuat).multiply(spinQuat);
                 }
