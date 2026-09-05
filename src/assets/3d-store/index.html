@@ -191,27 +191,101 @@
                 return tex;
             }
 
-            // Procedural Drop Ceiling Texture
+            // Procedural Drop Ceiling Texture (with 2x4 Fluorescent Lights)
             function createCeilingTexture() {
+                const TILE_SIZE = 512;
                 const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 512;
+                canvas.width = TILE_SIZE * 3;  // 1536 (3x3 grid of tiles)
+                canvas.height = TILE_SIZE * 3; // 1536
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, 512, 512);
+                
+                // Base white color
+                ctx.fillStyle = '#eeeeee';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Helper to draw acoustic dots
+                function drawAcoustic(x, y) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                    for (let i=0; i < 1500; i++) {
+                        ctx.fillRect(x + Math.random() * TILE_SIZE, y + Math.random() * TILE_SIZE, 3, 3);
+                    }
+                }
+                
                 ctx.strokeStyle = '#aaaaaa';
                 ctx.lineWidth = 12;
-                ctx.strokeRect(0, 0, 512, 512);
-                // Acoustic tile dots
-                ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                for (let i=0; i<1500; i++) ctx.fillRect(Math.random()*512, Math.random()*512, 3, 3);
+                
+                // Draw the 9 grid squares
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        const x = c * TILE_SIZE;
+                        const y = r * TILE_SIZE;
+                        ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+                        
+                        // Don't draw acoustic dots on the fluorescent light!
+                        if (!(r === 1 && (c === 1 || c === 2))) {
+                            drawAcoustic(x, y);
+                        }
+                    }
+                }
+                
+                // Draw the 2-tile-length Rectangular Fluorescent Light! (Row 1, Cols 1 & 2)
+                const lightX = TILE_SIZE; 
+                const lightY = TILE_SIZE;
+                const lightW = TILE_SIZE * 2;
+                const lightH = TILE_SIZE;
+                
+                // Metal frame around the light
+                ctx.fillStyle = '#dddddd';
+                ctx.fillRect(lightX + 10, lightY + 10, lightW - 20, lightH - 20);
+                ctx.strokeStyle = '#888888';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(lightX + 10, lightY + 10, lightW - 20, lightH - 20);
+                
+                // Glowing diffuser lens
+                ctx.fillStyle = '#ffffff'; 
+                ctx.fillRect(lightX + 25, lightY + 25, lightW - 50, lightH - 50);
+                
+                // Diffuser grid pattern
+                ctx.strokeStyle = '#f8f8f8';
+                ctx.lineWidth = 2;
+                for (let i = lightX + 25; i < lightX + lightW - 25; i += 12) {
+                    ctx.beginPath(); ctx.moveTo(i, lightY + 25); ctx.lineTo(i, lightY + lightH - 25); ctx.stroke();
+                }
+                for (let i = lightY + 25; i < lightY + lightH - 25; i += 12) {
+                    ctx.beginPath(); ctx.moveTo(lightX + 25, i); ctx.lineTo(lightX + lightW - 25, i); ctx.stroke();
+                }
+
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(15, 20);
+                tex.repeat.set(5, 6.66); 
                 tex.colorSpace = THREE.SRGBColorSpace;
                 tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-                return tex;
+                
+                // Create Emissive Map (Pitch black except for the light lens)
+                const emCanvas = document.createElement('canvas');
+                emCanvas.width = canvas.width; emCanvas.height = canvas.height;
+                const emCtx = emCanvas.getContext('2d');
+                emCtx.fillStyle = '#000000';
+                emCtx.fillRect(0, 0, emCanvas.width, emCanvas.height);
+                emCtx.fillStyle = '#ffffff'; // The part that will glow
+                emCtx.fillRect(lightX + 25, lightY + 25, lightW - 50, lightH - 50);
+                // Draw the diffuser grid in black so the grid lines don't glow!
+                emCtx.strokeStyle = '#000000';
+                emCtx.lineWidth = 2;
+                for (let i = lightX + 25; i < lightX + lightW - 25; i += 12) {
+                    emCtx.beginPath(); emCtx.moveTo(i, lightY + 25); emCtx.lineTo(i, lightY + lightH - 25); emCtx.stroke();
+                }
+                for (let i = lightY + 25; i < lightY + lightH - 25; i += 12) {
+                    emCtx.beginPath(); emCtx.moveTo(lightX + 25, i); emCtx.lineTo(lightX + lightW - 25, i); emCtx.stroke();
+                }
+                const emTex = new THREE.CanvasTexture(emCanvas);
+                emTex.wrapS = THREE.RepeatWrapping; emTex.wrapT = THREE.RepeatWrapping;
+                emTex.repeat.set(5, 6.66);
+                emTex.colorSpace = THREE.LinearSRGBColorSpace;
+                emTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+                return { map: tex, emissiveMap: emTex };
             }
 
             // Physical Store Room
@@ -229,7 +303,16 @@
 
             // Walls and Ceiling
             const wallMat = new THREE.MeshStandardMaterial({ color: 0xFF9E1B, roughness: 0.9, side: THREE.BackSide }); // Orange-Yellow
-            const ceilingMat = new THREE.MeshStandardMaterial({ map: createCeilingTexture(), roughness: 1.0, side: THREE.BackSide });
+            
+            const ceilingTextures = createCeilingTexture();
+            const ceilingMat = new THREE.MeshStandardMaterial({ 
+                map: ceilingTextures.map, 
+                emissiveMap: ceilingTextures.emissiveMap,
+                emissive: 0xfff0d0, // Warm orangish-yellow 90s bulb tint!
+                emissiveIntensity: 1.2,
+                roughness: 1.0, 
+                side: THREE.BackSide 
+            });
             // BoxGeometry materials: Right, Left, Top, Bottom, Front, Back
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
 
