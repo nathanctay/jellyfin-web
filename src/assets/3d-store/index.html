@@ -112,27 +112,49 @@
             document.body.appendChild(renderer.domElement);
 
             // Standard "Retail" Lighting (Bright and even)
-            const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
             scene.add(ambientLight);
 
-            const overheadLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            const overheadLight = new THREE.DirectionalLight(0xffffff, 0.8);
             overheadLight.position.set(0, 8, 3);
             scene.add(overheadLight);
 
-            // Procedural Floor Texture (Classic retail tile/carpet)
+            // Procedural Floor Texture (Classic retail tile)
             function createFloorTexture() {
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
                 canvas.height = 512;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#0a0a0c';
+                ctx.fillStyle = '#eeeeee';
                 ctx.fillRect(0, 0, 512, 512);
-                ctx.fillStyle = '#111114';
+                ctx.fillStyle = '#222222';
                 for (let i=0; i<8; i++) {
                     for (let j=0; j<8; j++) {
                         if ((i+j)%2 === 0) ctx.fillRect(i*64, j*64, 64, 64);
                     }
                 }
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(20, 20); // Larger tiles
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            // Procedural Drop Ceiling Texture
+            function createCeilingTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, 512, 512);
+                ctx.strokeStyle = '#aaaaaa';
+                ctx.lineWidth = 12;
+                ctx.strokeRect(0, 0, 512, 512);
+                // Acoustic tile dots
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                for (let i=0; i<1500; i++) ctx.fillRect(Math.random()*512, Math.random()*512, 3, 3);
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
@@ -146,8 +168,8 @@
             const floorGeo = new THREE.PlaneGeometry(100, 100);
             const floorMat = new THREE.MeshStandardMaterial({ 
                 map: createFloorTexture(),
-                roughness: 0.6, 
-                metalness: 0.1 
+                roughness: 0.8, 
+                metalness: 0.0 
             });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
@@ -155,14 +177,14 @@
             scene.add(floor);
 
             // Walls and Ceiling
-            const wallMat = new THREE.MeshStandardMaterial({ 
-                color: 0x151515, 
-                roughness: 0.9, 
-                side: THREE.BackSide // Render the inside of the box
-            });
-            const wallsGeo = new THREE.BoxGeometry(100, 25, 100);
-            const walls = new THREE.Mesh(wallsGeo, wallMat);
-            walls.position.set(0, 10, 0); 
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xFF9E1B, roughness: 0.9, side: THREE.BackSide }); // Orange-Yellow
+            const ceilingMat = new THREE.MeshStandardMaterial({ map: createCeilingTexture(), roughness: 1.0, side: THREE.BackSide });
+            // BoxGeometry materials: Right, Left, Top, Bottom, Front, Back
+            const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
+            
+            const wallsGeo = new THREE.BoxGeometry(100, 16, 100);
+            const walls = new THREE.Mesh(wallsGeo, roomMats);
+            walls.position.set(0, 6.5, 0); 
             scene.add(walls);
 
             const interactableMeshes = [];
@@ -454,7 +476,13 @@
                     { name: 'Family', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Family` },
                     { name: 'Thriller', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Thriller` },
                     { name: 'Latest', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=DateCreated&SortOrder=Descending&Fields=${fields}` },
-                    { name: 'Suggestions', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}` }
+                    { name: 'Suggestions', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}` },
+                    { name: 'Fantasy', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Fantasy` },
+                    { name: 'Romance', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Romance` },
+                    { name: 'Crime', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Crime` },
+                    { name: 'Adventure', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Adventure` },
+                    { name: 'Animation', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Animation` },
+                    { name: 'Mystery', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Mystery` }
                 ];
 
                 const catPromises = categories.map(async (cat) => {
@@ -472,20 +500,20 @@
                 // We run all Gondola builds in parallel to prevent massive sequential loading times
                 await Promise.all([
                     // 1. The Outer Walls (Single Sided, 5 shelves tall)
-                    buildGondola(lists[0], { x: -22, z: -5 }, Math.PI / 2, 50, false, 5, allMovies), // Left Wall
-                    buildGondola(lists[1], { x: 22, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies), // Right Wall
-                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies), // Back Wall
+                    buildGondola(lists[0], { x: -22, z: -5 }, Math.PI / 2, 50, false, 5, allMovies, categories[0].name), // Left Wall
+                    buildGondola(lists[1], { x: 22, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies, categories[1].name), // Right Wall
+                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies, categories[2].name), // Back Wall
                     
                     // 2. The Gondolas (The "teeth" of the E, Double Sided, 3 shelves tall)
                     // Left Side Gondolas
-                    buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies),
-                    buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies),
-                    buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies),
+                    buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies, categories[3].name, lists[9], categories[9].name),
+                    buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies, categories[4].name, lists[10], categories[10].name),
+                    buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies, categories[5].name, lists[11], categories[11].name),
                     
                     // Right Side Gondolas
-                    buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies),
-                    buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies),
-                    buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies)
+                    buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies, categories[6].name, lists[12], categories[12].name),
+                    buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
+                    buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies, categories[8].name, lists[14], categories[14].name)
                 ]);
 
                 loadingScreen.style.opacity = '0';
@@ -497,32 +525,81 @@
         }
 
         // Builds a shelving unit. Double-sided for center gondolas, single-sided for walls.
-        async function buildGondola(items, position, rotationY, length = 20, isDoubleSided = false, shelfCount = 3, fallbackItems = null) {
-            if (!items || !items.length) items = fallbackItems;
-            if (!items || !items.length) return;
+        async function buildGondola(itemsFront, position, rotationY, length = 20, isDoubleSided = false, shelfCount = 3, fallbackItems = null, labelFront = null, itemsBack = null, labelBack = null) {
+            if (!itemsFront || !itemsFront.length) itemsFront = fallbackItems;
+            if (isDoubleSided && (!itemsBack || !itemsBack.length)) itemsBack = fallbackItems;
+            if (!itemsFront || !itemsFront.length) return;
             
             const gondola = new THREE.Group();
             gondola.position.set(position.x, 0, position.z);
             gondola.rotation.y = rotationY;
             scene.add(gondola);
 
+            function createSignTexture(text) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#4b0082'; // Purple
+                ctx.fillRect(0, 0, 1024, 256);
+                ctx.strokeStyle = '#FDDA0D'; // Yellow border
+                ctx.lineWidth = 16;
+                ctx.strokeRect(8, 8, 1008, 240);
+                ctx.fillStyle = '#FDDA0D';
+                ctx.font = 'italic bold 100px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text.toUpperCase(), 512, 128);
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            if (labelFront) {
+                const signMatFront = new THREE.MeshBasicMaterial({ map: createSignTexture(labelFront) });
+                const signMatBack = labelBack ? new THREE.MeshBasicMaterial({ map: createSignTexture(labelBack) }) : signMatFront;
+                const edgeMat = new THREE.MeshBasicMaterial({ color: 0xFDDA0D });
+                
+                // Materials: Right, Left, Top, Bottom, Front (+Z), Back (-Z)
+                const signMats = [edgeMat, edgeMat, edgeMat, edgeMat, signMatFront, signMatBack];
+                
+                const signGeo = new THREE.BoxGeometry(6, 1.5, 0.1);
+                const sign = new THREE.Mesh(signGeo, signMats);
+                
+                sign.position.set(0, shelfCount * 2 + 1.5, 0);
+                
+                const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
+                const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+                const pole1 = new THREE.Mesh(poleGeo, poleMat);
+                pole1.position.set(-2, shelfCount * 2 + 0.5, 0);
+                const pole2 = new THREE.Mesh(poleGeo, poleMat);
+                pole2.position.set(2, shelfCount * 2 + 0.5, 0);
+                
+                gondola.add(sign);
+                gondola.add(pole1);
+                gondola.add(pole2);
+            }
+
             // Backboard
-            const backMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const backMat = new THREE.MeshStandardMaterial({ color: 0x3a210d, roughness: 0.9 });
             const backGeo = new THREE.BoxGeometry(length, shelfCount * 2 + 2, 0.5);
             const back = new THREE.Mesh(backGeo, backMat);
             back.position.set(0, shelfCount - 0.5, 0); // Centered height
             gondola.add(back);
 
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
-            const solidMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
+            const solidMat = new THREE.MeshStandardMaterial({ color: 0x241407, roughness: 0.6 });
 
             const itemsPerShelf = Math.floor(length / 1.2); 
             const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
             const shelfPromises = [];
 
             for (const side of sides) {
+                const sideItems = side === 1 ? itemsFront : itemsBack;
+                if (!sideItems || !sideItems.length) continue;
+                
                 // Randomize starting index per *side* so gondolas look natural, but increment sequentially per shelf so no repeats
-                let itemIndex = Math.floor(Math.random() * items.length);
+                let itemIndex = Math.floor(Math.random() * sideItems.length);
 
                 for (let s = 0; s < shelfCount; s++) {
                     const shelfHeight = 0.5 + s * 2;
@@ -533,7 +610,7 @@
 
                     const shelfItems = [];
                     for (let i = 0; i < itemsPerShelf; i++) {
-                        shelfItems.push(items[itemIndex % items.length]);
+                        shelfItems.push(sideItems[itemIndex % sideItems.length]);
                         itemIndex++;
                     }
                     
@@ -583,20 +660,40 @@
 
             // --- Navigation Nodes (Predetermined Standing Spots) ---
             const nodes = [];
-            const nodeGeo = new THREE.RingGeometry(0.6, 0.8, 32); // A ring looks more like a modern UI marker
+            
+            // Create a texture that looks like a ring, but applied to a solid plane so the whole square is clickable
+            const nodeCanvas = document.createElement('canvas');
+            nodeCanvas.width = 128;
+            nodeCanvas.height = 128;
+            const nodeCtx = nodeCanvas.getContext('2d');
+            
+            // Faint dark circle background for better visibility
+            nodeCtx.fillStyle = 'rgba(0,0,0,0.4)';
+            nodeCtx.beginPath();
+            nodeCtx.arc(64, 64, 60, 0, Math.PI * 2);
+            nodeCtx.fill();
+            
+            nodeCtx.strokeStyle = '#ffffff';
+            nodeCtx.lineWidth = 10;
+            nodeCtx.beginPath();
+            nodeCtx.arc(64, 64, 48, 0, Math.PI * 2);
+            nodeCtx.stroke();
+            const nodeTex = new THREE.CanvasTexture(nodeCanvas);
+            
+            const nodeGeo = new THREE.PlaneGeometry(5, 5); // 5x5 clickable area
             nodeGeo.rotateX(-Math.PI / 2);
             
             const nodePositions = [
                 // Center Aisle
-                {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -26},
+                {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -23},
                 // Left Sub-Aisles
-                {x: -14, z: 5}, {x: -14, z: -9}, {x: -14, z: -26},
+                {x: -14, z: 5}, {x: -14, z: -9}, {x: -14, z: -23},
                 // Right Sub-Aisles
-                {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -26}
+                {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -23}
             ];
             
             for (let pos of nodePositions) {
-                const nodeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+                const nodeMat = new THREE.MeshBasicMaterial({ map: nodeTex, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
                 const node = new THREE.Mesh(nodeGeo, nodeMat);
                 node.position.set(pos.x, -1.48, pos.z);
                 node.userData = { isNode: true, targetX: pos.x, targetZ: pos.z };
@@ -633,14 +730,14 @@
             let isDragging = false;
             let dragDistance = 0;
             let previousMousePosition = { x: 0, y: 0 };
-            let targetRotationY = 0;
+            let targetSpin = 0;
+            let currentSpin = 0;
 
             function onPointerDown(clientX, clientY) {
                 isDragging = true;
                 dragDistance = 0;
                 previousMousePosition = { x: clientX, y: clientY };
                 if (currentState === STATE.INSPECT && inspectedMesh) {
-                    targetRotationY = inspectedMesh.rotation.y;
                     document.body.style.cursor = 'grabbing';
                 }
             }
@@ -655,7 +752,7 @@
                     dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
                     
                     if (currentState === STATE.INSPECT && inspectedMesh) {
-                        targetRotationY += deltaX * 0.01;
+                        targetSpin += deltaX * 0.01;
                     } else if (currentState === STATE.BROWSE) {
                         cameraYaw += deltaX * 0.005;
                         cameraPitch += deltaY * 0.005;
@@ -671,8 +768,8 @@
                 isDragging = false;
                 if (currentState === STATE.INSPECT && inspectedMesh) {
                     document.body.style.cursor = 'grab';
-                    const halfTurns = Math.round(targetRotationY / Math.PI);
-                    targetRotationY = halfTurns * Math.PI;
+                    const halfTurns = Math.round(targetSpin / Math.PI);
+                    targetSpin = halfTurns * Math.PI;
                 }
             }
 
@@ -704,11 +801,18 @@
                             const dist2D = Math.sqrt(dx*dx + dz*dz);
                             
                             if (dist2D > 12) {
-                                // Too far away! Find the nearest node to the movie and walk there instead.
+                                // Find where the user should stand to look at this movie (4 units in front of it)
+                                const caseWorldQuat = new THREE.Quaternion();
+                                hoveredMesh.getWorldQuaternion(caseWorldQuat);
+                                const interactionPoint = new THREE.Vector3(0, 0, 4); 
+                                interactionPoint.applyQuaternion(caseWorldQuat);
+                                interactionPoint.add(caseWorldPos);
+
+                                // Find the nearest node to that optimal standing spot
                                 let nearestNode = nodes[0];
                                 let minDist = Infinity;
                                 for (let node of nodes) {
-                                    const nd = Math.sqrt(Math.pow(node.position.x - caseWorldPos.x, 2) + Math.pow(node.position.z - caseWorldPos.z, 2));
+                                    const nd = Math.sqrt(Math.pow(node.position.x - interactionPoint.x, 2) + Math.pow(node.position.z - interactionPoint.z, 2));
                                     if (nd < minDist) {
                                         minDist = nd;
                                         nearestNode = node;
@@ -738,9 +842,10 @@
                             
                             // Align rotation perfectly with camera
                             inspectedMesh.position.copy(targetWorldPos);
-                            inspectedMesh.rotation.copy(camera.rotation);
+                            inspectedMesh.quaternion.copy(camera.quaternion);
                             
-                            targetRotationY = inspectedMesh.rotation.y;
+                            targetSpin = 0;
+                            currentSpin = 0;
 
                             selectedItem = inspectedMesh.userData;
                             hudTitle.innerText = selectedItem.title || selectedItem.name;
@@ -790,7 +895,7 @@
                             // Reset previous hovered mesh
                             if (hoveredMesh) {
                                 if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
-                                else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.2;
+                                else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
                             }
                             
                             // Set new hovered mesh
@@ -799,13 +904,13 @@
                                 hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
                                 hoveredMesh.translateZ(0.2); // Pops out locally from gondola
                             }
-                            else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.6;
+                            else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.9;
                             
                             document.body.style.cursor = 'pointer';
                         }
                     } else if (hoveredMesh !== null) {
                         if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
-                        else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.2;
+                        else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
                         hoveredMesh = null;
                         document.body.style.cursor = 'default';
                     }
@@ -820,11 +925,13 @@
                     inspectedMesh.position.copy(targetWorldPos);
 
                     // Smoothly interpolate rotation to target
-                    inspectedMesh.rotation.y += (targetRotationY - inspectedMesh.rotation.y) * 0.1;
+                    currentSpin += (targetSpin - currentSpin) * 0.1;
                     
-                    // Keep pitch locked to camera
-                    inspectedMesh.rotation.x = camera.rotation.x;
-                    inspectedMesh.rotation.z = camera.rotation.z;
+                    const baseQuat = new THREE.Quaternion().copy(camera.quaternion);
+                    const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), currentSpin);
+                    
+                    // Multiply them: this perfectly spins the movie on its vertical axis RELATIVE to the screen
+                    inspectedMesh.quaternion.copy(baseQuat).multiply(spinQuat);
                 }
 
                 renderer.render(scene, camera);
