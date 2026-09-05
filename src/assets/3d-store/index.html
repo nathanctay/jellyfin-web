@@ -949,6 +949,36 @@
             interactableMeshes.push(back);
 
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
+            
+            // Glossy black clamshell plastic for the edges of the movie cases
+            const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
+            
+            // Create a classic "BE KIND REWIND" rental sticker to slap on random movies
+            function createStickerTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffcc00'; // Yellow border
+                ctx.fillRect(0, 0, 128, 128);
+                ctx.fillStyle = '#0000aa'; // Blue inner border
+                ctx.fillRect(5, 5, 118, 118);
+                ctx.fillStyle = '#ffcc00'; // Yellow center
+                ctx.fillRect(10, 10, 108, 108);
+                
+                ctx.fillStyle = '#0000aa';
+                ctx.font = 'bold 20px "Helvetica", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('BE KIND', 64, 55);
+                ctx.fillText('PLEASE', 64, 80);
+                ctx.fillText('REWIND', 64, 105);
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+            const stickerMat = new THREE.MeshStandardMaterial({ map: createStickerTexture(), roughness: 0.5, transparent: true, depthWrite: false });
+            const stickerGeo = new THREE.PlaneGeometry(0.35, 0.35);
+
             // Classic Blockbuster Shelf Metal
             const solidMat = new THREE.MeshStandardMaterial({ color: 0x8c8779, roughness: 0.6, metalness: 0.3 });
 
@@ -1003,8 +1033,17 @@
                             const backMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
                             const spineMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
 
-                            const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
-
+                            const caseMesh = new THREE.Mesh(caseGeo, [casePlasticMat, spineMat, casePlasticMat, casePlasticMat, frontMat, backMat]);
+                            
+                            // 30% chance to have a "BE KIND REWIND" sticker!
+                            if (Math.random() < 0.3) {
+                                const sticker = new THREE.Mesh(stickerGeo, stickerMat);
+                                // Slap it on the bottom right corner of the front cover
+                                sticker.position.set(0.2, -0.4, 0.051); 
+                                // Give it a random crooked angle so it looks hand-placed!
+                                sticker.rotation.z = (Math.random() - 0.5) * 0.4;
+                                caseMesh.add(sticker);
+                            }
                             const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
                             caseMesh.position.set(xPos, shelfHeight, side * 0.8);
 
