@@ -418,77 +418,46 @@
                 }
             }
 
-            const textureSemaphore = new Semaphore(10); // Max 10 concurrent texture loads
+            // We use 15 here because local dev servers (HTTP/1.1) cap at 6 concurrent connections.
+            // 15 provides a smooth pipeline without overwhelming the browser's internal socket queue.
+            // For production on Cloudflare (HTTP/2), you can bump this back to 50-100!
+            const textureSemaphore = new Semaphore(15); 
             const textureCache = new Map();
 
             // Helper to fetch images and extract average color
-            async function loadTexture(itemId) {
+            // Helper to fetch images and extract average color
+            function loadTexture(itemId) {
+                // Return the promise immediately if it's already in the cache
                 if (textureCache.has(itemId)) {
                     return textureCache.get(itemId);
                 }
                 
-                await textureSemaphore.acquire();
+                // Create the promise and store it in the cache BEFORE awaiting anything!
+                // This prevents duplicate concurrent fetches for the same movie across different shelves.
+                const promise = (async () => {
+                    await textureSemaphore.acquire();
+                    
+                    try {
+                        const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=256&quality=80`;
+                        const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
+                        if (!imgRes.ok) return null;
+                        const blob = await imgRes.blob();
+                        const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+
+                        const tex = new THREE.Texture(bmp);
+                        tex.colorSpace = THREE.SRGBColorSpace;
+                        tex.needsUpdate = true;
+                        
+                        return { texture: tex, bitmap: bmp };
+                    } catch (e) {
+                        return null;
+                    } finally {
+                        textureSemaphore.release();
+                    }
+                })();
                 
-                try {
-                    // Check cache again inside lock just in case it was loaded while waiting
-                    if (textureCache.has(itemId)) {
-                        return textureCache.get(itemId);
-                    }
-                    
-                    const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=400&quality=80`;
-                    const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
-                    if (!imgRes.ok) return null;
-                    const blob = await imgRes.blob();
-                    const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
-
-                    // Simplify color extraction (Huge performance win)
-                    const tinyCanvas = document.createElement('canvas');
-                    tinyCanvas.width = 16;
-                    tinyCanvas.height = 16;
-                    const tinyCtx = tinyCanvas.getContext('2d');
-                    tinyCtx.drawImage(bmp, 0, 0, 16, 16);
-                    const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
-                    
-                    let r = 0, g = 0, b = 0, count = 0;
-                    for (let i = 0; i < pixels.length; i += 4) {
-                        r += pixels[i];
-                        g += pixels[i+1];
-                        b += pixels[i+2];
-                        count++;
-                    }
-                    
-                    const avgR = Math.floor(r / count);
-                    const avgG = Math.floor(g / count);
-                    const avgB = Math.floor(b / count);
-                    const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
-                    
-                    // WCAG Relative Luminance
-                    const r_lin = avgR / 255;
-                    const g_lin = avgG / 255;
-                    const b_lin = avgB / 255;
-                    const luminance = 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin;
-                    
-                    // Determine text color based on luminance
-                    const isLight = luminance > 0.45;
-                    const palette = {
-                        bg: bgColor,
-                        text: isLight ? '#111111' : '#ffffff',
-                        subtext: isLight ? '#333333' : '#cccccc',
-                        divider: isLight ? '#999999' : '#333333'
-                    };
-
-                    const tex = new THREE.Texture(bmp);
-                    tex.colorSpace = THREE.SRGBColorSpace;
-                    tex.needsUpdate = true;
-                    
-                    const result = { texture: tex, palette: palette };
-                    textureCache.set(itemId, result);
-                    return result;
-                } catch (e) {
-                    return null;
-                } finally {
-                    textureSemaphore.release();
-                }
+                textureCache.set(itemId, promise);
+                return promise;
             }
             // Start loading data in the background without blocking the render loop
             loadData().catch(e => console.error(e));
@@ -497,29 +466,62 @@
                 const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
                 const fields = 'Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
                 
-                // Fetch 9 distinct categories for our 9 massive structures
+                function shuffleArray(array) {
+                    for (let i = array.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [array[i], array[j]] = [array[j], array[i]];
+                    }
+                    return array;
+                }
+
+                // Fetch 15 distinct categories for our massive structures
                 const categories = [
-                    { name: 'Action', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Action` },
-                    { name: 'Comedy', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Comedy` },
-                    { name: 'Drama', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Drama` },
-                    { name: 'Sci-Fi', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Sci-Fi` },
-                    { name: 'Horror', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Horror` },
-                    { name: 'Family', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Family` },
-                    { name: 'Thriller', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Thriller` },
-                    { name: 'Latest', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=DateCreated&SortOrder=Descending&Fields=${fields}` },
-                    { name: 'Suggestions', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}` },
-                    { name: 'Fantasy', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Fantasy` },
-                    { name: 'Romance', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Romance` },
-                    { name: 'Crime', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Crime` },
-                    { name: 'Adventure', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Adventure` },
-                    { name: 'Animation', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Animation` },
-                    { name: 'Mystery', url: `/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=60&SortBy=Random&Fields=${fields}&Genres=Mystery` }
+                    { name: 'Action', genre: 'Action', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Comedy', genre: 'Comedy', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Drama', genre: 'Drama', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Sci-Fi', genre: 'Sci-Fi', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Horror', genre: 'Horror', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Family', genre: 'Family', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Thriller', genre: 'Thriller', sort: 'SortName', randomizeWindow: true },
+                    // Latest shouldn't use a random window, we want the actual newest movies!
+                    { name: 'Latest', genre: null, sort: 'DateCreated', sortOrder: 'Descending', randomizeWindow: false },
+                    { name: 'Suggestions', genre: null, sort: 'SortName', randomizeWindow: true },
+                    { name: 'Fantasy', genre: 'Fantasy', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Romance', genre: 'Romance', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Crime', genre: 'Crime', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Adventure', genre: 'Adventure', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Animation', genre: 'Animation', sort: 'SortName', randomizeWindow: true },
+                    { name: 'Mystery', genre: 'Mystery', sort: 'SortName', randomizeWindow: true }
                 ];
 
                 const catPromises = categories.map(async (cat) => {
-                    const res = await fetch(`${jfServer}${cat.url}`, { headers: { 'X-Emby-Token': jfToken } });
+                    const genreParam = cat.genre ? `&Genres=${cat.genre}` : '';
+                    const sortParam = cat.sortOrder ? `&SortBy=${cat.sort}&SortOrder=${cat.sortOrder}` : `&SortBy=${cat.sort}`;
+
+                    // 1. Fetch just 1 item to get the TotalRecordCount (Lightning fast, uses index)
+                    const countUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=1&Fields=Id${genreParam}`;
+                    const countRes = await fetch(countUrl, { headers: { 'X-Emby-Token': jfToken } });
+                    const countData = await countRes.json();
+                    const total = countData.TotalRecordCount || 0;
+
+                    if (total === 0) return [];
+
+                    // 2. Pick a random "window" of 100 movies from the catalog
+                    const limit = Math.min(100, total);
+                    const maxStart = Math.max(0, total - limit);
+                    
+                    // If it's the "Latest" shelf, start at 0. Otherwise, pick a random spot in the alphabet.
+                    const startIndex = cat.randomizeWindow === false ? 0 : Math.floor(Math.random() * maxStart);
+
+                    // 3. Fetch the actual data using the fast, indexed sort
+                    const dataUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=${limit}&StartIndex=${startIndex}${sortParam}&Fields=${fields}${genreParam}`;
+                    const res = await fetch(dataUrl, { headers: { 'X-Emby-Token': jfToken } });
                     const data = await res.json();
-                    return extractItems(data);
+                    
+                    let items = extractItems(data);
+                    
+                    // 4. Shuffle the 100 items on the client
+                    return shuffleArray(items);
                 });
                 
                 const lists = await Promise.all(catPromises);
@@ -533,23 +535,24 @@
                 setTimeout(() => loadingScreen.style.display = 'none', 500);
 
                 // The "Back-to-Back E" layout
-                // We run all Gondola builds in parallel to prevent massive sequential loading times
+                // We order these by proximity to the camera (Z=14) so the semaphore prioritizes the closest movies!
                 await Promise.all([
-                    // 1. The Outer Walls (Single Sided, 5 shelves tall)
+                    // Front Gondolas (Closest)
+                    buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies, categories[5].name, lists[11], categories[11].name),
+                    buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies, categories[8].name, lists[14], categories[14].name),
+                    
+                    // Middle Gondolas
+                    buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies, categories[4].name, lists[10], categories[10].name),
+                    buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
+                    
+                    // Back Gondolas
+                    buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies, categories[3].name, lists[9], categories[9].name),
+                    buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies, categories[6].name, lists[12], categories[12].name),
+                    
+                    // Outer Walls
                     buildGondola(lists[0], { x: -22, z: -5 }, Math.PI / 2, 50, false, 5, allMovies, categories[0].name), // Left Wall
                     buildGondola(lists[1], { x: 22, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies, categories[1].name), // Right Wall
-                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies, categories[2].name), // Back Wall
-                    
-                    // 2. The Gondolas (The "teeth" of the E, Double Sided, 3 shelves tall)
-                    // Left Side Gondolas
-                    buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies, categories[3].name, lists[9], categories[9].name),
-                    buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies, categories[4].name, lists[10], categories[10].name),
-                    buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies, categories[5].name, lists[11], categories[11].name),
-                    
-                    // Right Side Gondolas
-                    buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies, categories[6].name, lists[12], categories[12].name),
-                    buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies, categories[7].name, lists[13], categories[13].name),
-                    buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies, categories[8].name, lists[14], categories[14].name)
+                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies, categories[2].name) // Back Wall
                 ]);
             } catch (e) {
                 console.error("Failed to load store data", e);
@@ -623,7 +626,7 @@
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
             const solidMat = new THREE.MeshStandardMaterial({ color: 0x241407, roughness: 0.6 });
 
-            const itemsPerShelf = Math.floor(length / 1.2); 
+            const itemsPerShelf = Math.floor(length / 1.5); 
             const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
             const shelfPromises = [];
 
@@ -652,21 +655,21 @@
                         const itemPromises = shelfItems.map(async (item, i) => {
                             const texData = await loadTexture(item.Id);
                             
-                            let frontMat, backColor = 0x111111;
+                            let frontMat;
                             if (texData) {
                                 frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
-                                backColor = texData.palette.bg;
                             } else {
                                 frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
                             }
                             
+                            // Use a standard dark color for the shelf. It's barely visible anyway!
                             // Create unique material instances so we can lazily inject textures later on click
-                            const backMat = new THREE.MeshStandardMaterial({ color: backColor, roughness: 0.5 });
-                            const spineMat = new THREE.MeshStandardMaterial({ color: backColor, roughness: 0.5 });
+                            const backMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
+                            const spineMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
                             
                             const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
                             
-                            const xPos = (i - shelfItems.length / 2) * 1.2 + 0.6;
+                            const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
                             caseMesh.position.set(xPos, shelfHeight, side * 0.8);
                             
                             if (side === -1) {
@@ -676,7 +679,7 @@
                                 caseMesh.rotation.x = -0.1;
                             }
                             
-                            caseMesh.userData = { item: item, id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
+                            caseMesh.userData = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseMesh.position.clone(), originalRot: caseMesh.rotation.clone() };
                             gondola.add(caseMesh);
                             interactableMeshes.push(caseMesh);
                         });
@@ -861,8 +864,38 @@
                             // Lazily generate the back and spine textures the very first time the user picks up this specific movie
                             if (!inspectedMesh.userData.hasBackCover) {
                                 const item = inspectedMesh.userData.item;
-                                const texData = textureCache.get(item.Id);
-                                const palette = texData ? texData.palette : null;
+                                const bitmap = inspectedMesh.userData.bitmap;
+                                let palette = null;
+                                
+                                // Extract color ON DEMAND just for this one movie!
+                                if (bitmap) {
+                                    const tinyCanvas = document.createElement('canvas');
+                                    tinyCanvas.width = 16;
+                                    tinyCanvas.height = 16;
+                                    const tinyCtx = tinyCanvas.getContext('2d');
+                                    tinyCtx.drawImage(bitmap, 0, 0, 16, 16);
+                                    const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
+                                    
+                                    let r = 0, g = 0, b = 0, count = 0;
+                                    for (let i = 0; i < pixels.length; i += 4) {
+                                        r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; count++;
+                                    }
+                                    
+                                    const avgR = Math.floor(r / count);
+                                    const avgG = Math.floor(g / count);
+                                    const avgB = Math.floor(b / count);
+                                    const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
+                                    
+                                    const luminance = 0.2126 * (avgR/255) + 0.7152 * (avgG/255) + 0.0722 * (avgB/255);
+                                    const isLight = luminance > 0.45;
+                                    
+                                    palette = {
+                                        bg: bgColor,
+                                        text: isLight ? '#111111' : '#ffffff',
+                                        subtext: isLight ? '#333333' : '#cccccc',
+                                        divider: isLight ? '#999999' : '#333333'
+                                    };
+                                }
                                 
                                 const backTex = createBackCoverTexture(item, palette);
                                 const spineTex = createSpineTexture(item, palette);
