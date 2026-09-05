@@ -917,7 +917,30 @@
             }
 
             // Backboard
-            const backMat = new THREE.MeshStandardMaterial({ color: 0x3a210d, roughness: 0.9 });
+            // Classic Blockbuster Beige/Cream Pegboard Metal
+            function createPegboardTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#9e998a'; // Darkened to a drab industrial grey/beige
+                ctx.fillRect(0, 0, 128, 128);
+                ctx.fillStyle = '#222222';
+                // Draw 4 peg holes
+                ctx.beginPath(); ctx.arc(32, 32, 5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(96, 32, 5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(32, 96, 5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(96, 96, 5, 0, Math.PI*2); ctx.fill();
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+                // Repeat density based on physical wall size
+                tex.repeat.set(length * 2, (shelfCount * 2 + 2) * 2);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                return tex;
+            }
+            
+            const backMat = new THREE.MeshStandardMaterial({ map: createPegboardTexture(), roughness: 0.8, metalness: 0.1 });
             const backGeo = new THREE.BoxGeometry(length, shelfCount * 2 + 2, 0.5);
             const back = new THREE.Mesh(backGeo, backMat);
             back.position.set(0, shelfCount - 0.5, 0); // Centered height
@@ -926,7 +949,8 @@
             interactableMeshes.push(back);
 
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
-            const solidMat = new THREE.MeshStandardMaterial({ color: 0x241407, roughness: 0.6 });
+            // Classic Blockbuster Shelf Metal
+            const solidMat = new THREE.MeshStandardMaterial({ color: 0x8c8779, roughness: 0.6, metalness: 0.3 });
 
             const itemsPerShelf = Math.floor(length / 1.5);
             const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
@@ -947,6 +971,14 @@
                     const plank = new THREE.Mesh(plankGeo, solidMat);
                     plank.position.set(0, shelfHeight - 0.75, side * 0.6);
                     gondola.add(plank);
+                    
+                    // Blockbuster Blue Plastic Ticket Rail
+                    const railGeo = new THREE.BoxGeometry(length, 0.15, 0.05);
+                    const railMat = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 0.3, metalness: 0.1 });
+                    const rail = new THREE.Mesh(railGeo, railMat);
+                    // 0.6 is the center of the plank (which is 1.2 deep). So +0.6 gets us to the front edge.
+                    rail.position.set(0, shelfHeight - 0.75, side * (0.6 + 0.6 + 0.025)); 
+                    gondola.add(rail);
 
                     const shelfItems = [];
                     for (let i = 0; i < itemsPerShelf; i++) {
