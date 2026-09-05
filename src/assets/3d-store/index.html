@@ -56,7 +56,7 @@
         <div class="spinner"></div>
         <h3 id="loading-text">Loading shelves...</h3>
     </div>
-    
+
     <div id="hud">
         <h2 id="hud-title">Title</h2>
         <button id="hud-play">Play</button>
@@ -89,7 +89,7 @@
 
         // 2. Three.js Setup (Triggered after Auth)
         let cleanup3D = () => {};
-        
+
         // HUD Elements
         const hud = document.getElementById('hud');
         const hudTitle = document.getElementById('hud-title');
@@ -119,7 +119,177 @@
 
             const interactableMeshes = [];
 
-            // Helper to fetch images
+            // Polyfill for CanvasRenderingContext2D.roundRect
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + r, y, r);
+                this.closePath();
+                return this;
+            }
+
+            function createBackCoverTexture(item, palette) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 768; // 1:1.5 ratio
+                const ctx = canvas.getContext('2d');
+
+                if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
+
+                // Background
+                ctx.fillStyle = palette.bg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Title
+                ctx.fillStyle = palette.text;
+                ctx.font = 'bold 44px "Helvetica Neue", sans-serif';
+                ctx.textAlign = 'left';
+
+                function wrapText(context, text, x, y, maxWidth, lineHeight, maxLines = 10) {
+                    if (!text) return y;
+                    const words = text.split(' ');
+                    let line = '';
+                    let currentY = y;
+                    let lines = 0;
+
+                    for (let n = 0; n < words.length; n++) {
+                        const testLine = line + words[n] + ' ';
+                        const metrics = context.measureText(testLine);
+                        const testWidth = metrics.width;
+                        if (testWidth > maxWidth && n > 0) {
+                            context.fillText(line, x, currentY);
+                            line = words[n] + ' ';
+                            currentY += lineHeight;
+                            lines++;
+                            if (lines >= maxLines) {
+                                context.fillText('...', x, currentY);
+                                return currentY + lineHeight;
+                            }
+                        } else {
+                            line = testLine;
+                        }
+                    }
+                    context.fillText(line, x, currentY);
+                    return currentY + lineHeight;
+                }
+
+                let yPos = 80; // Moved up since top bar is gone
+                yPos = wrapText(ctx, item.Name || 'Unknown Title', 30, yPos, canvas.width - 60, 50, 3);
+
+                // Meta info
+                ctx.font = '22px "Helvetica Neue", sans-serif';
+                ctx.fillStyle = palette.subtext;
+                const year = item.ProductionYear || '----';
+                const rating = item.OfficialRating || 'NR';
+                let runtime = '';
+                if (item.RunTimeTicks) {
+                    const mins = Math.floor(item.RunTimeTicks / 600000000);
+                    const h = Math.floor(mins / 60);
+                    const m = mins % 60;
+                    runtime = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                }
+                const genre = (item.Genres && item.Genres.length > 0) ? item.Genres[0] : '';
+                ctx.fillText(`${year}  ·  ${rating}  ·  ${runtime}  ${genre ? '·  ' + genre : ''}`, 30, yPos + 10);
+                yPos += 60;
+
+                // Divider
+                ctx.strokeStyle = palette.divider;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(30, yPos);
+                ctx.lineTo(canvas.width - 30, yPos);
+                ctx.stroke();
+                yPos += 40;
+
+                // Synopsis Header
+                ctx.fillStyle = '#f5c518';
+                ctx.font = 'bold 16px "Helvetica Neue", sans-serif';
+                ctx.fillText('S Y N O P S I S', 30, yPos);
+                yPos += 40;
+
+                // Synopsis Body
+                ctx.fillStyle = palette.text;
+                ctx.font = '22px "Helvetica Neue", sans-serif';
+                yPos = wrapText(ctx, item.Overview || 'No synopsis available.', 30, yPos, canvas.width - 60, 32, 12); // Added more lines since we removed top bar
+
+                // Bottom Sticker
+                ctx.fillStyle = '#111111';
+                ctx.roundRect(canvas.width - 200, canvas.height - 100, 170, 70, 10);
+                ctx.fill();
+                ctx.strokeStyle = '#f5c518';
+                ctx.lineWidth = 2;
+                ctx.roundRect(canvas.width - 195, canvas.height - 95, 160, 60, 6);
+                ctx.stroke();
+
+                ctx.fillStyle = '#f5c518';
+                ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('RENTAL COPY', canvas.width - 115, canvas.height - 62);
+                ctx.fillStyle = '#aaaaaa';
+                ctx.font = '12px "Helvetica Neue", sans-serif';
+                ctx.fillText('Please Rewind', canvas.width - 115, canvas.height - 44);
+
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            function createSpineTexture(item, palette) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64; // Aspect ratio 0.10 to 1.5 is 1:15 (64x960)
+                canvas.height = 960;
+                const ctx = canvas.getContext('2d');
+
+                if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
+
+                // Background
+                ctx.fillStyle = palette.bg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Sticker at Top
+                ctx.fillStyle = '#f5c518'; // Yellow
+                ctx.fillRect(0, 0, canvas.width, 100);
+                
+                // Sticker Text (Rotated slightly or stacked)
+                ctx.fillStyle = '#111111';
+                ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('SHELF', canvas.width / 2, 40);
+                ctx.fillText('COPY', canvas.width / 2, 60);
+
+                // Spine Title (Rotated 90 degrees)
+                ctx.save();
+                ctx.translate(canvas.width / 2, 160); // Start below the sticker
+                ctx.rotate(Math.PI / 2); // Rotate 90 degrees clockwise
+                
+                ctx.fillStyle = palette.text;
+                ctx.font = 'bold 36px "Helvetica Neue", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                
+                // Truncate if too long (roughly 750px width available when rotated)
+                let title = item.Name || 'Unknown Title';
+                if (ctx.measureText(title).width > 750) {
+                    while (ctx.measureText(title + '...').width > 750 && title.length > 0) {
+                        title = title.substring(0, title.length - 1);
+                    }
+                    title += '...';
+                }
+                
+                ctx.fillText(title, 0, 0);
+                ctx.restore();
+
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+
+            // Helper to fetch images and extract average color
             async function loadTexture(itemId) {
                 try {
                     const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=400&quality=80`;
@@ -127,10 +297,47 @@
                     if (!imgRes.ok) return null;
                     const blob = await imgRes.blob();
                     const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+
+                    // Extract true average color
+                    const tinyCanvas = document.createElement('canvas');
+                    tinyCanvas.width = 16;
+                    tinyCanvas.height = 16;
+                    const tinyCtx = tinyCanvas.getContext('2d');
+                    tinyCtx.drawImage(bmp, 0, 0, 16, 16);
+                    const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
+                    
+                    let sumR = 0, sumG = 0, sumB = 0;
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        sumR += pixels[i];
+                        sumG += pixels[i+1];
+                        sumB += pixels[i+2];
+                    }
+                    const pixelCount = pixels.length / 4;
+                    const avgR = Math.floor(sumR / pixelCount);
+                    const avgG = Math.floor(sumG / pixelCount);
+                    const avgB = Math.floor(sumB / pixelCount);
+                    
+                    const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
+                    
+                    // WCAG Relative Luminance
+                    const r_lin = avgR / 255;
+                    const g_lin = avgG / 255;
+                    const b_lin = avgB / 255;
+                    const luminance = 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin;
+                    
+                    // Determine text color based on luminance
+                    const isLight = luminance > 0.45;
+                    const palette = {
+                        bg: bgColor,
+                        text: isLight ? '#111111' : '#ffffff',
+                        subtext: isLight ? '#333333' : '#cccccc',
+                        divider: isLight ? '#999999' : '#333333'
+                    };
+
                     const tex = new THREE.Texture(bmp);
                     tex.colorSpace = THREE.SRGBColorSpace;
                     tex.needsUpdate = true;
-                    return tex;
+                    return { texture: tex, palette: palette };
                 } catch (e) {
                     return null;
                 }
@@ -145,15 +352,15 @@
                     if (!items.length) return;
 
                     const caseCount = Math.min(items.length, 20);
-                    const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.2);
+                    const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
                     const solidMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
-                    
+
                     // We need separate materials for each instance to have different textures
                     // Three.js InstancedMesh doesn't support different textures per instance easily without texture atlases or NodeMaterial.
                     // Since it's <60 items total, we will use a Group of individual Meshes for now, which is still very fast.
                     const shelfGroup = new THREE.Group();
                     shelfGroup.position.y = yPos;
-                    
+
                     // Physical Shelf Plank
                     const shelfPlankGeo = new THREE.BoxGeometry(caseCount * 1.2, 0.1, 0.8);
                     const shelfPlankMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1f, roughness: 0.9 });
@@ -163,16 +370,28 @@
 
                     for (let i = 0; i < caseCount; i++) {
                         const item = items[i];
-                        const tex = await loadTexture(item.Id);
-                        const frontMat = tex 
-                            ? new THREE.MeshStandardMaterial({ map: tex, roughness: 0.2 })
-                            : new THREE.MeshStandardMaterial({ color: 0x4ade80 });
-                        
-                        const caseMesh = new THREE.Mesh(caseGeo, [solidMat, solidMat, solidMat, solidMat, frontMat, solidMat]);
+                        const texData = await loadTexture(item.Id);
+
+                        let frontMat, backTex, spineTex;
+                        if (texData) {
+                            frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
+                            backTex = createBackCoverTexture(item, texData.palette);
+                            spineTex = createSpineTexture(item, texData.palette);
+                        } else {
+                            frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
+                            backTex = createBackCoverTexture(item);
+                            spineTex = createSpineTexture(item);
+                        }
+
+                        const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.5 });
+                        const spineMat = new THREE.MeshStandardMaterial({ map: spineTex, roughness: 0.5 });
+
+                        // Materials array matches BoxGeometry faces: right, left, top, bottom, front, back
+                        const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
                         caseMesh.position.set((i - caseCount / 2) * 1.2, 0, 0);
                         caseMesh.rotation.x = -0.1;
                         caseMesh.rotation.y = (Math.random() - 0.5) * 0.1;
-                        
+
                         // Store metadata for raycasting
                         caseMesh.userData = { id: item.Id, name: item.Name, type: item.Type };
                         shelfGroup.add(caseMesh);
@@ -185,10 +404,11 @@
             }
 
             // Build 3 shelves and wait for all to finish
+            const fields = '&Fields=Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
             await Promise.all([
-                buildShelf("Latest Movies", `/Users/${jfUserId}/Items/Latest?IncludeItemTypes=Movie&Limit=20`, 4),
-                buildShelf("Continue Watching", `/Users/${jfUserId}/Items/Resume?Limit=20`, 2),
-                buildShelf("My Requests", `/HomeScreen/Section/MyJellyseerrRequests?userId=${jfUserId}`, 0)
+                buildShelf("Latest Movies", `/Users/${jfUserId}/Items/Latest?IncludeItemTypes=Movie&Limit=20${fields}`, 4),
+                buildShelf("Continue Watching", `/Users/${jfUserId}/Items/Resume?Limit=20${fields}`, 2),
+                buildShelf("My Requests", `/HomeScreen/Section/MyJellyseerrRequests?userId=${jfUserId}${fields}`, 0)
             ]);
 
             // Hide loading screen once all data is bound and meshes created
@@ -210,7 +430,7 @@
             window.addEventListener('touchstart', (e) => {
                 touchStartX = e.touches[0].clientX;
             }, { passive: true });
-            
+
             window.addEventListener('touchmove', (e) => {
                 const deltaX = touchStartX - e.touches[0].clientX;
                 targetCameraX += deltaX * 0.02;
@@ -234,7 +454,7 @@
             let dragDistance = 0;
             let previousMousePosition = { x: 0, y: 0 };
             let targetRotationY = 0;
-            
+
             window.addEventListener('mousedown', (e) => {
                 if (currentState === STATE.INSPECT) {
                     isDragging = true;
@@ -266,7 +486,7 @@
                     previousMousePosition = { x: e.clientX, y: e.clientY };
                 }
             });
-            
+
             // Touch inspect dragging
             window.addEventListener('touchstart', (e) => {
                 if (currentState === STATE.INSPECT) {
@@ -276,7 +496,7 @@
                     if (inspectedMesh) targetRotationY = inspectedMesh.rotation.y;
                 }
             }, { passive: true });
-            
+
             window.addEventListener('touchmove', (e) => {
                 if (currentState === STATE.INSPECT && isDragging && inspectedMesh) {
                     const deltaX = e.touches[0].clientX - previousMousePosition.x;
@@ -302,9 +522,9 @@
                         originalPosition.copy(inspectedMesh.position);
                         originalRotation.copy(inspectedMesh.rotation);
 
-                        const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.2, camera.position.z - 2);
+                        const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y + 0.05, camera.position.z - 2);
                         inspectedMesh.parent.worldToLocal(targetWorldPos);
-                        
+
                         inspectedMesh.position.copy(targetWorldPos);
                         inspectedMesh.rotation.set(0, 0, 0);
                         targetRotationY = 0; // Reset target rotation
@@ -316,7 +536,7 @@
                     }
                 } else if (currentState === STATE.INSPECT) {
                     if (dragDistance > 10) return;
-                    
+
                     currentState = STATE.BROWSE;
                     inspectedMesh.position.copy(originalPosition);
                     inspectedMesh.rotation.copy(originalRotation);
@@ -344,7 +564,7 @@
 
                     raycaster.setFromCamera(mouse, camera);
                     const intersects = raycaster.intersectObjects(interactableMeshes);
-                    
+
                     if (intersects.length > 0) {
                         const hit = intersects[0].object;
                         if (hoveredMesh !== hit) {
@@ -359,7 +579,7 @@
                         document.body.style.cursor = 'default';
                     }
                 } else if (currentState === STATE.INSPECT && inspectedMesh) {
-                    const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.2, camera.position.z - 2);
+                    const targetWorldPos = new THREE.Vector3(camera.position.x, camera.position.y + 0.05, camera.position.z - 2);
                     inspectedMesh.parent.worldToLocal(targetWorldPos);
                     inspectedMesh.position.x = targetWorldPos.x;
 
