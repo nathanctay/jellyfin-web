@@ -112,10 +112,10 @@
             document.body.appendChild(renderer.domElement);
 
             // Standard "Retail" Lighting (Bright and even)
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
+            const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
             scene.add(ambientLight);
 
-            const overheadLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            const overheadLight = new THREE.DirectionalLight(0xffffff, 1.5);
             overheadLight.position.set(0, 8, 3);
             scene.add(overheadLight);
 
@@ -136,14 +136,14 @@
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(20, 10);
+                tex.repeat.set(40, 40);
                 tex.colorSpace = THREE.SRGBColorSpace;
                 return tex;
             }
 
             // Physical Store Room
             // Floor
-            const floorGeo = new THREE.PlaneGeometry(60, 60);
+            const floorGeo = new THREE.PlaneGeometry(100, 100);
             const floorMat = new THREE.MeshStandardMaterial({ 
                 map: createFloorTexture(),
                 roughness: 0.6, 
@@ -160,22 +160,10 @@
                 roughness: 0.9, 
                 side: THREE.BackSide // Render the inside of the box
             });
-            const wallsGeo = new THREE.BoxGeometry(60, 15, 60);
+            const wallsGeo = new THREE.BoxGeometry(100, 25, 100);
             const walls = new THREE.Mesh(wallsGeo, wallMat);
-            walls.position.set(0, 5, 0); 
+            walls.position.set(0, 10, 0); 
             scene.add(walls);
-
-            // Shelf Backboards (The walls of the gondolas)
-            const backboardGeo = new THREE.BoxGeometry(12, 8, 0.2);
-            const backboardMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
-            
-            const leftBack = new THREE.Mesh(backboardGeo, backboardMat);
-            leftBack.position.set(-8, 2, -0.8);
-            scene.add(leftBack);
-            
-            const rightBack = new THREE.Mesh(backboardGeo, backboardMat);
-            rightBack.position.set(8, 2, -0.8);
-            scene.add(rightBack);
 
             const interactableMeshes = [];
 
@@ -476,25 +464,28 @@
                 });
                 
                 const lists = await Promise.all(catPromises);
+                
+                // Fallback list of all movies in case a genre is completely empty on their server
+                const allMovies = lists.flat().filter(m => m !== undefined);
 
                 // The "Back-to-Back E" layout
                 // We run all Gondola builds in parallel to prevent massive sequential loading times
                 await Promise.all([
-                    // 1. The Outer Walls (Single Sided)
-                    buildGondola(lists[0], { x: -18, z: 0 }, Math.PI / 2, 36, false), // Left Wall
-                    buildGondola(lists[1], { x: 18, z: 0 }, -Math.PI / 2, 36, false), // Right Wall
-                    buildGondola(lists[2], { x: 0, z: -18 }, 0, 36, false), // Back Wall
+                    // 1. The Outer Walls (Single Sided, 5 shelves tall)
+                    buildGondola(lists[0], { x: -22, z: -5 }, Math.PI / 2, 50, false, 5, allMovies), // Left Wall
+                    buildGondola(lists[1], { x: 22, z: -5 }, -Math.PI / 2, 50, false, 5, allMovies), // Right Wall
+                    buildGondola(lists[2], { x: 0, z: -30 }, 0, 44, false, 5, allMovies), // Back Wall
                     
-                    // 2. The Gondolas (The "teeth" of the E, Double Sided)
+                    // 2. The Gondolas (The "teeth" of the E, Double Sided, 3 shelves tall)
                     // Left Side Gondolas
-                    buildGondola(lists[3], { x: -11, z: -8 }, 0, 14, true),
-                    buildGondola(lists[4], { x: -11, z: 0 }, 0, 14, true),
-                    buildGondola(lists[5], { x: -11, z: 8 }, 0, 14, true),
+                    buildGondola(lists[3], { x: -14, z: -16 }, 0, 16, true, 3, allMovies),
+                    buildGondola(lists[4], { x: -14, z: -2 }, 0, 16, true, 3, allMovies),
+                    buildGondola(lists[5], { x: -14, z: 12 }, 0, 16, true, 3, allMovies),
                     
                     // Right Side Gondolas
-                    buildGondola(lists[6], { x: 11, z: -8 }, 0, 14, true),
-                    buildGondola(lists[7], { x: 11, z: 0 }, 0, 14, true),
-                    buildGondola(lists[8], { x: 11, z: 8 }, 0, 14, true)
+                    buildGondola(lists[6], { x: 14, z: -16 }, 0, 16, true, 3, allMovies),
+                    buildGondola(lists[7], { x: 14, z: -2 }, 0, 16, true, 3, allMovies),
+                    buildGondola(lists[8], { x: 14, z: 12 }, 0, 16, true, 3, allMovies)
                 ]);
 
                 loadingScreen.style.opacity = '0';
@@ -506,7 +497,8 @@
         }
 
         // Builds a shelving unit. Double-sided for center gondolas, single-sided for walls.
-        async function buildGondola(items, position, rotationY, length = 20, isDoubleSided = false) {
+        async function buildGondola(items, position, rotationY, length = 20, isDoubleSided = false, shelfCount = 3, fallbackItems = null) {
+            if (!items || !items.length) items = fallbackItems;
             if (!items || !items.length) return;
             
             const gondola = new THREE.Group();
@@ -516,31 +508,34 @@
 
             // Backboard
             const backMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-            const backGeo = new THREE.BoxGeometry(length, 8, 0.5);
+            const backGeo = new THREE.BoxGeometry(length, shelfCount * 2 + 2, 0.5);
             const back = new THREE.Mesh(backGeo, backMat);
-            back.position.set(0, 3, 0); // Centered
+            back.position.set(0, shelfCount - 0.5, 0); // Centered height
             gondola.add(back);
 
             const caseGeo = new THREE.BoxGeometry(1, 1.5, 0.10);
             const solidMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
 
-            // 3 Vertical Shelves
-            const shelfHeights = [0.5, 2.5, 4.5];
             const itemsPerShelf = Math.floor(length / 1.2); 
-            
             const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
-
             const shelfPromises = [];
 
             for (const side of sides) {
-                for (let s = 0; s < 3; s++) {
+                // Randomize starting index per *side* so gondolas look natural, but increment sequentially per shelf so no repeats
+                let itemIndex = Math.floor(Math.random() * items.length);
+
+                for (let s = 0; s < shelfCount; s++) {
+                    const shelfHeight = 0.5 + s * 2;
                     const plankGeo = new THREE.BoxGeometry(length, 0.1, 1.2);
                     const plank = new THREE.Mesh(plankGeo, solidMat);
-                    plank.position.set(0, shelfHeights[s] - 0.75, side * 0.6);
+                    plank.position.set(0, shelfHeight - 0.75, side * 0.6);
                     gondola.add(plank);
 
-                    const startIndex = Math.max(0, Math.floor(Math.random() * (items.length - itemsPerShelf)));
-                    const shelfItems = items.slice(startIndex, startIndex + itemsPerShelf);
+                    const shelfItems = [];
+                    for (let i = 0; i < itemsPerShelf; i++) {
+                        shelfItems.push(items[itemIndex % items.length]);
+                        itemIndex++;
+                    }
                     
                     // Parallelize image fetching for this shelf
                     const buildShelfItems = async () => {
@@ -564,7 +559,7 @@
                             const caseMesh = new THREE.Mesh(caseGeo, [solidMat, spineMat, solidMat, solidMat, frontMat, backMat]);
                             
                             const xPos = (i - shelfItems.length / 2) * 1.2 + 0.6;
-                            caseMesh.position.set(xPos, shelfHeights[s], side * 0.8);
+                            caseMesh.position.set(xPos, shelfHeight, side * 0.8);
                             
                             if (side === -1) {
                                 caseMesh.rotation.y = Math.PI;
@@ -591,16 +586,27 @@
             const nodeGeo = new THREE.RingGeometry(0.6, 0.8, 32); // A ring looks more like a modern UI marker
             nodeGeo.rotateX(-Math.PI / 2);
             
-            for (let z of [14, 7, 0, -7, -14]) {
+            const nodePositions = [
+                // Center Aisle
+                {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -26},
+                // Left Sub-Aisles
+                {x: -14, z: 5}, {x: -14, z: -9}, {x: -14, z: -26},
+                // Right Sub-Aisles
+                {x: 14, z: 5}, {x: 14, z: -9}, {x: 14, z: -26}
+            ];
+            
+            for (let pos of nodePositions) {
                 const nodeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
                 const node = new THREE.Mesh(nodeGeo, nodeMat);
-                node.position.set(0, -1.48, z);
-                node.userData = { isNode: true, targetZ: z };
+                node.position.set(pos.x, -1.48, pos.z);
+                node.userData = { isNode: true, targetX: pos.x, targetZ: pos.z };
                 scene.add(node);
                 interactableMeshes.push(node);
                 nodes.push(node);
             }
 
+            let targetCameraX = 0;
+            let currentCameraX = 0;
             let targetCameraZ = 14;
             let currentCameraZ = 14;
             
@@ -685,9 +691,35 @@
                     if (hoveredMesh && hoveredMesh.userData) {
                         if (hoveredMesh.userData.isNode) {
                             // Clicked a floor node to walk
+                            targetCameraX = hoveredMesh.userData.targetX;
                             targetCameraZ = hoveredMesh.userData.targetZ;
                         } else if (hoveredMesh.userData.isCase) {
-                            // Clicked a movie to inspect
+                            
+                            // Check distance
+                            const caseWorldPos = new THREE.Vector3();
+                            hoveredMesh.getWorldPosition(caseWorldPos);
+                            
+                            const dx = camera.position.x - caseWorldPos.x;
+                            const dz = camera.position.z - caseWorldPos.z;
+                            const dist2D = Math.sqrt(dx*dx + dz*dz);
+                            
+                            if (dist2D > 12) {
+                                // Too far away! Find the nearest node to the movie and walk there instead.
+                                let nearestNode = nodes[0];
+                                let minDist = Infinity;
+                                for (let node of nodes) {
+                                    const nd = Math.sqrt(Math.pow(node.position.x - caseWorldPos.x, 2) + Math.pow(node.position.z - caseWorldPos.z, 2));
+                                    if (nd < minDist) {
+                                        minDist = nd;
+                                        nearestNode = node;
+                                    }
+                                }
+                                targetCameraX = nearestNode.userData.targetX;
+                                targetCameraZ = nearestNode.userData.targetZ;
+                                return; // Skip inspection for now, they are just walking over to it
+                            }
+
+                            // Clicked a movie to inspect (Close enough)
                             currentState = STATE.INSPECT;
                             inspectedMesh = hoveredMesh;
                             
@@ -744,6 +776,8 @@
                 rafId = requestAnimationFrame(animate);
 
                 if (currentState === STATE.BROWSE) {
+                    currentCameraX += (targetCameraX - currentCameraX) * 0.1;
+                    camera.position.x = currentCameraX;
                     currentCameraZ += (targetCameraZ - currentCameraZ) * 0.1;
                     camera.position.z = currentCameraZ;
 
