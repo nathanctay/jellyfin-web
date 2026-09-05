@@ -34,7 +34,12 @@
       "name": "Request Movies/Shows",
       "icon": "cloud_download",
       "url": "https://seerr-nathanctay.tofino.usbx.me/"
-  }
+    },
+    {
+      "name": "NathanBuster",
+      "icon": "store",
+      "url": "#!/virtual-store"
+    }
   ],
   "featuredCollections": [],
   "carouselPlaylist": "Carousel",

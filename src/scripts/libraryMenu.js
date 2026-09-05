@@ -47,7 +47,7 @@ function renderHeader() {
     html += '<button is="paper-icon-button-light" class="headerSyncButton syncButton headerButton headerButtonRight hide"><span class="material-icons groups" aria-hidden="true"></span></button>';
     html += '<span class="headerSelectedPlayer"></span>';
     html += '<button is="paper-icon-button-light" class="headerAudioPlayerButton audioPlayerButton headerButton headerButtonRight hide"><span class="material-icons music_note" aria-hidden="true"></span></button>';
-    html += '<button type="button" is="paper-icon-button-light" class="headerButton headerButtonRight headerVirtualStoreButton hide" title="Virtual Store"><span class="material-icons store" aria-hidden="true"></span></button>';
+
     html += '<button is="paper-icon-button-light" class="headerCastButton castButton headerButton headerButtonRight hide"><span class="material-icons cast" aria-hidden="true"></span></button>';
     html += '<button type="button" is="paper-icon-button-light" class="headerButton headerButtonRight headerSearchButton hide"><span class="material-icons search" aria-hidden="true"></span></button>';
     html += '<button is="paper-icon-button-light" class="headerButton headerButtonRight headerUserButton hide"><span class="material-icons person" aria-hidden="true"></span></button>';
@@ -68,7 +68,7 @@ function renderHeader() {
     mainDrawerButton = skinHeader.querySelector('.mainDrawerButton');
     headerUserButton = skinHeader.querySelector('.headerUserButton');
     headerCastButton = skinHeader.querySelector('.headerCastButton');
-    headerVirtualStoreButton = skinHeader.querySelector('.headerVirtualStoreButton');
+
     headerAudioPlayerButton = skinHeader.querySelector('.headerAudioPlayerButton');
     headerSearchButton = skinHeader.querySelector('.headerSearchButton');
     headerSyncButton = skinHeader.querySelector('.headerSyncButton');
@@ -167,9 +167,7 @@ function updateUserInHeader(user) {
             headerCastButton.classList.remove('hide');
         }
         
-        if (headerVirtualStoreButton) {
-            headerVirtualStoreButton.classList.remove('hide');
-        }
+
 
         const policy = user.Policy ? user.Policy : user.localUser.Policy;
 
@@ -186,7 +184,7 @@ function updateUserInHeader(user) {
     } else {
         headerHomeButton.classList.add('hide');
         headerCastButton.classList.add('hide');
-        headerVirtualStoreButton.classList.add('hide');
+
         headerSyncButton.classList.add('hide');
 
         if (headerSearchButton) {
@@ -247,11 +245,7 @@ function bindMenuEvents() {
         headerSearchButton.addEventListener('click', showSearch);
     }
     
-    if (headerVirtualStoreButton) {
-        headerVirtualStoreButton.addEventListener('click', function() {
-            Dashboard.navigate('virtual-store');
-        });
-    }
+
 
     headerUserButton.addEventListener('click', onHeaderUserButtonClick);
     headerHomeButton.addEventListener('click', onHeaderHomeButtonClick);
@@ -701,7 +695,7 @@ let headerBackButton;
 let headerUserButton;
 let currentUser;
 let headerCastButton;
-let headerVirtualStoreButton;
+
 let headerSearchButton;
 let headerAudioPlayerButton;
 let headerSyncButton;

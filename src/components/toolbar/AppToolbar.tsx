@@ -89,21 +89,6 @@ const AppToolbar: FC<PropsWithChildren<AppToolbarProps>> = ({
                 </Tooltip>
             )}
 
-            {isUserLoggedIn && (
-                <Tooltip title="Virtual Store">
-                    <IconButton
-                        size='large'
-                        color='inherit'
-                        aria-label="Virtual Store"
-                        onClick={() => {
-                            navigate('/virtual-store');
-                        }}
-                    >
-                        <span className="material-icons store" aria-hidden="true"></span>
-                    </IconButton>
-                </Tooltip>
-            )}
-
             {children}
 
             <Box sx={{ display: 'flex', flexGrow: 1, justifyContent: 'flex-end' }}>

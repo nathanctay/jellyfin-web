@@ -216,12 +216,43 @@
             // BoxGeometry materials: Right, Left, Top, Bottom, Front, Back
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
             
-            const wallsGeo = new THREE.BoxGeometry(100, 16, 100);
+            const wallsGeo = new THREE.BoxGeometry(50, 16, 65);
             const walls = new THREE.Mesh(wallsGeo, roomMats);
             walls.position.set(0, 6.5, 0); 
             scene.add(walls);
 
+            // --- Exit Doorway ---
+            const doorGroup = new THREE.Group();
+            doorGroup.position.set(0, 2.5, 32.4); // Placed flush against the front wall
+            
+            // Glass Doors
+            const doorGeo = new THREE.BoxGeometry(10, 8, 0.2);
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.8 });
+            const doors = new THREE.Mesh(doorGeo, doorMat);
+            doors.position.set(0, 0, 0);
+            doorGroup.add(doors);
+            
+            // Glowing Exit Sign (Red Canvas)
+            const exitCanvas = document.createElement('canvas');
+            exitCanvas.width = 256; exitCanvas.height = 128;
+            const exitCtx = exitCanvas.getContext('2d');
+            exitCtx.fillStyle = '#ff0000'; exitCtx.fillRect(0,0,256,128);
+            exitCtx.fillStyle = '#ffffff'; exitCtx.font = 'bold 70px "Helvetica Neue", sans-serif'; exitCtx.textAlign = 'center';
+            exitCtx.fillText('EXIT', 128, 90);
+            const exitTex = new THREE.Texture(exitCanvas); exitTex.needsUpdate = true;
+            
+            const exitSignGeo = new THREE.BoxGeometry(3, 1.5, 0.3);
+            const exitSignMat = new THREE.MeshBasicMaterial({ map: exitTex, color: 0xffffff }); // Basic material glows in the dark
+            const exitSign = new THREE.Mesh(exitSignGeo, exitSignMat);
+            exitSign.position.set(0, 5, 0);
+            doorGroup.add(exitSign);
+            
+            scene.add(doorGroup);
+
             const interactableMeshes = [];
+            
+            doors.userData = { isExit: true };
+            interactableMeshes.push(doors);
 
             // Polyfill for CanvasRenderingContext2D.roundRect
             CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
@@ -820,7 +851,10 @@
                     if (dragDistance > 10) return; // It was a pan, not a click
 
                     if (hoveredMesh && hoveredMesh.userData) {
-                        if (hoveredMesh.userData.isNode) {
+                        if (hoveredMesh.userData.isExit) {
+                            window.history.back(); // Or window.location.href = '/' if this is the main app
+                            return;
+                        } else if (hoveredMesh.userData.isNode) {
                             // Clicked a floor node to walk
                             targetCameraX = hoveredMesh.userData.targetX;
                             targetCameraZ = hoveredMesh.userData.targetZ;
@@ -978,6 +1012,7 @@
                             if (hoveredMesh) {
                                 if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
                                 else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
+                                else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.3;
                             }
                             
                             // Set new hovered mesh
@@ -987,12 +1022,14 @@
                                 hoveredMesh.translateZ(0.2); // Pops out locally from gondola
                             }
                             else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.9;
+                            else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.7;
                             
                             document.body.style.cursor = 'pointer';
                         }
                     } else if (hoveredMesh !== null) {
                         if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
                         else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
+                        else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.3;
                         hoveredMesh = null;
                         document.body.style.cursor = 'default';
                     }
