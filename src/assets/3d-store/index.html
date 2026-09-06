@@ -751,7 +751,7 @@
             }
 
             // Optimized for Cloudflare HTTP/2 multiplexing in production
-            const textureSemaphore = new Semaphore(20);
+            const textureSemaphore = new Semaphore(50);
             const textureCache = new Map();
 
             // Helper to fetch images and extract average color
@@ -1885,15 +1885,15 @@
 
                         if (hit.userData && hit.userData.isShelf && hit.userData.movieGroups) {
                             // Convert raycast point to shelf's local coordinates
-                            const point = lastIntersection.point.clone(); 
-                            
+                            const point = lastIntersection.point.clone();
+
                             // Convert to the HITBOX'S local space!
                             hit.worldToLocal(point);
-                            
+
                             // Find the closest movie group to that X coordinate mathematically!
                             let closestMovie = null;
                             let minDist = Infinity;
-                            
+
                             // Iterate only through the movies on THIS specific shelf
                             for(let group of hit.userData.movieGroups) {
                                 const dist = Math.abs(point.x - group.position.x);
@@ -1902,9 +1902,9 @@
                                     closestMovie = group;
                                 }
                             }
-                            
+
                             if (closestMovie) {
-                                hit = closestMovie; 
+                                hit = closestMovie;
                             }
                         }
 
