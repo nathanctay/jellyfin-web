@@ -163,23 +163,28 @@
                 ctx.fillStyle = '#161625';
                 ctx.fillRect(0, 0, 512, 512);
 
-                // Static noise to simulate carpet threads
+                // 1. Get the pixel data array
                 const imgData = ctx.getImageData(0, 0, 512, 512);
                 const data = imgData.data;
+                const colors = [[233,69,96], [108,99,255], [0,210,255], [255,101,132]];
+
+                // 2. Manipulate pixels directly (No fillRect!)
                 for (let i = 0; i < data.length; i += 4) {
+                    // Carpet noise
                     const noise = (Math.random() - 0.5) * 35;
                     data[i] = Math.max(0, Math.min(255, data[i] + noise));
                     data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise));
                     data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise));
-                }
-                ctx.putImageData(imgData, 0, 0);
 
-                // Neon 90s specks
-                const colors = ['#e94560', '#6C63FF', '#00d2ff', '#FF6584'];
-                for (let i = 0; i < 3000; i++) {
-                    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-                    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+                    // 3000 specks is roughly 1.1% of 262,144 pixels
+                    if (Math.random() < 0.011) {
+                        const c = colors[Math.floor(Math.random() * colors.length)];
+                        data[i] = c[0]; data[i+1] = c[1]; data[i+2] = c[2];
+                    }
                 }
+
+                // 3. Put the modified data back onto the canvas
+                ctx.putImageData(imgData, 0, 0);
 
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
@@ -197,53 +202,73 @@
                 canvas.width = TILE_SIZE * 3;  // 1536 (3x3 grid of tiles)
                 canvas.height = TILE_SIZE * 3; // 1536
                 const ctx = canvas.getContext('2d');
-                
+
                 // Base white color
                 ctx.fillStyle = '#eeeeee';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Helper to draw acoustic dots
-                function drawAcoustic(x, y) {
-                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                    for (let i=0; i < 1500; i++) {
-                        ctx.fillRect(x + Math.random() * TILE_SIZE, y + Math.random() * TILE_SIZE, 3, 3);
-                    }
-                }
-                
-                ctx.strokeStyle = '#aaaaaa';
-                ctx.lineWidth = 12;
-                
-                // Draw the 9 grid squares
+
+                // Helper to draw acoustic dots via ImageData (MUCH FASTER)
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+
+                // 1500 dots per tile * 7 tiles = 10500 dots total
+                // 1536 * 1536 = 2,359,296 pixels total
                 for (let r = 0; r < 3; r++) {
                     for (let c = 0; c < 3; c++) {
-                        const x = c * TILE_SIZE;
-                        const y = r * TILE_SIZE;
-                        ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
-                        
-                        // Don't draw acoustic dots on the fluorescent light!
-                        if (!(r === 1 && (c === 1 || c === 2))) {
-                            drawAcoustic(x, y);
+                        // Skip the fluorescent light (Row 1, Cols 1 & 2)
+                        if (r === 1 && (c === 1 || c === 2)) continue;
+
+                        const startX = c * TILE_SIZE;
+                        const startY = r * TILE_SIZE;
+
+                        for (let i = 0; i < 1500; i++) {
+                            const dx = Math.floor(Math.random() * TILE_SIZE);
+                            const dy = Math.floor(Math.random() * TILE_SIZE);
+                            // Set a 3x3 block of pixels (roughly)
+                            for (let pY = 0; pY < 3; pY++) {
+                                for (let pX = 0; pX < 3; pX++) {
+                                    const pxX = startX + dx + pX;
+                                    const pxY = startY + dy + pY;
+                                    if (pxX < canvas.width && pxY < canvas.height) {
+                                        const idx = (pxY * canvas.width + pxX) * 4;
+                                        data[idx] = data[idx] * 0.9; // Darken R
+                                        data[idx+1] = data[idx+1] * 0.9; // Darken G
+                                        data[idx+2] = data[idx+2] * 0.9; // Darken B
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-                
+                ctx.putImageData(imgData, 0, 0);
+
+                ctx.strokeStyle = '#aaaaaa';
+                ctx.lineWidth = 12;
+
+                // Draw the 9 grid squares
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+
                 // Draw the 2-tile-length Rectangular Fluorescent Light! (Row 1, Cols 1 & 2)
-                const lightX = TILE_SIZE; 
+                const lightX = TILE_SIZE;
                 const lightY = TILE_SIZE;
                 const lightW = TILE_SIZE * 2;
                 const lightH = TILE_SIZE;
-                
+
                 // Metal frame around the light
                 ctx.fillStyle = '#dddddd';
                 ctx.fillRect(lightX + 10, lightY + 10, lightW - 20, lightH - 20);
                 ctx.strokeStyle = '#888888';
                 ctx.lineWidth = 4;
                 ctx.strokeRect(lightX + 10, lightY + 10, lightW - 20, lightH - 20);
-                
+
                 // Glowing diffuser lens
-                ctx.fillStyle = '#ffffff'; 
+                ctx.fillStyle = '#ffffff';
                 ctx.fillRect(lightX + 25, lightY + 25, lightW - 50, lightH - 50);
-                
+
                 // Diffuser grid pattern
                 ctx.strokeStyle = '#f8f8f8';
                 ctx.lineWidth = 2;
@@ -257,10 +282,10 @@
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(5, 6.66); 
+                tex.repeat.set(5, 6.66);
                 tex.colorSpace = THREE.SRGBColorSpace;
                 tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-                
+
                 // Create Emissive Map (Pitch black except for the light lens)
                 const emCanvas = document.createElement('canvas');
                 emCanvas.width = canvas.width; emCanvas.height = canvas.height;
@@ -288,6 +313,33 @@
             }
 
             // Physical Store Room
+            // SHARED GEOMETRIES & MATERIALS (Create ONCE for performance)
+            const defaultBackMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
+            const defaultSpineMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
+            const fallbackFrontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.2 });
+            const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
+
+            const caseShape = new THREE.Shape();
+            const w = 0.96, h = 1.46, r = 0.05; // 0.96 + 0.04 bevels = 1.0. 1.46 + 0.04 = 1.5.
+            caseShape.moveTo(-w/2, -h/2 + r);
+            caseShape.lineTo(-w/2, h/2 - r);
+            caseShape.quadraticCurveTo(-w/2, h/2, -w/2 + r, h/2);
+            caseShape.lineTo(w/2 - r, h/2);
+            caseShape.quadraticCurveTo(w/2, h/2, w/2, h/2 - r);
+            caseShape.lineTo(w/2, -h/2 + r);
+            caseShape.quadraticCurveTo(w/2, -h/2, w/2 - r, -h/2);
+            caseShape.lineTo(-w/2 + r, -h/2);
+            caseShape.quadraticCurveTo(-w/2, -h/2, -w/2, -h/2 + r);
+
+            const sharedCaseGeo = new THREE.ExtrudeGeometry(caseShape, {
+                depth: 0.08, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.02, bevelThickness: 0.01
+            });
+            sharedCaseGeo.center();
+
+            const sharedFrontGeo = new THREE.PlaneGeometry(0.94, 1.44);
+            const sharedBackGeo = new THREE.PlaneGeometry(0.94, 1.44);
+            const sharedSpineGeo = new THREE.PlaneGeometry(0.08, 1.44);
+
             // Floor
             const floorGeo = new THREE.PlaneGeometry(100, 100);
             const floorMat = new THREE.MeshStandardMaterial({
@@ -302,15 +354,15 @@
 
             // Walls and Ceiling
             const wallMat = new THREE.MeshStandardMaterial({ color: 0xFF9E1B, roughness: 0.9, side: THREE.BackSide }); // Orange-Yellow
-            
+
             const ceilingTextures = createCeilingTexture();
-            const ceilingMat = new THREE.MeshStandardMaterial({ 
-                map: ceilingTextures.map, 
+            const ceilingMat = new THREE.MeshStandardMaterial({
+                map: ceilingTextures.map,
                 emissiveMap: ceilingTextures.emissiveMap,
                 emissive: 0xfff0d0, // Warm orangish-yellow 90s bulb tint!
                 emissiveIntensity: 1.2,
-                roughness: 1.0, 
-                side: THREE.BackSide 
+                roughness: 1.0,
+                side: THREE.BackSide
             });
             // BoxGeometry materials: Right, Left, Top, Bottom, Front, Back
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
@@ -454,17 +506,19 @@
             interactableMeshes.push(doorsHitBox);
 
             // Polyfill for CanvasRenderingContext2D.roundRect
-            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-                if (w < 2 * r) r = w / 2;
-                if (h < 2 * r) r = h / 2;
-                this.beginPath();
-                this.moveTo(x + r, y);
-                this.arcTo(x + w, y, x + w, y + h, r);
-                this.arcTo(x + w, y + h, x, y + h, r);
-                this.arcTo(x, y + h, x, y, r);
-                this.arcTo(x, y, x + r, y, r);
-                this.closePath();
-                return this;
+            if (!CanvasRenderingContext2D.prototype.roundRect) {
+                CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                    if (w < 2 * r) r = w / 2;
+                    if (h < 2 * r) r = h / 2;
+                    this.beginPath();
+                    this.moveTo(x + r, y);
+                    this.arcTo(x + w, y, x + w, y + h, r);
+                    this.arcTo(x + w, y + h, x, y + h, r);
+                    this.arcTo(x, y + h, x, y, r);
+                    this.arcTo(x, y, x + r, y, r);
+                    this.closePath();
+                    return this;
+                };
             }
 
             function createBackCoverTexture(item, palette) {
@@ -494,13 +548,13 @@
                 const ratingWidth = Math.max(52, ctx.measureText(rating).width + 20);
                 const boxRight = canvas.width - 30; // 30px margin from right
                 const boxLeft = boxRight - ratingWidth;
-                
+
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(boxLeft - 4, 60, ratingWidth + 8, 45);
                 ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 3;
                 ctx.strokeRect(boxLeft, 64, ratingWidth, 37);
-                
+
                 ctx.fillStyle = '#000000';
                 ctx.textAlign = 'center';
                 ctx.fillText(rating, boxLeft + ratingWidth / 2, 93);
@@ -697,7 +751,7 @@
             }
 
             // Optimized for Cloudflare HTTP/2 multiplexing in production
-            const textureSemaphore = new Semaphore(100);
+            const textureSemaphore = new Semaphore(20);
             const textureCache = new Map();
 
             // Helper to fetch images and extract average color
@@ -816,7 +870,7 @@
                     const counterGroup = new THREE.Group();
                     // Placed near the front door (Z = 32.3). Customers enter and see the counter at Z = 24.
                     counterGroup.position.set(0, 0, 24);
-                    
+
                     // 1. The Main Desk (Blockbuster Blue)
                     const deskGeo = new THREE.BoxGeometry(18, 3.5, 4);
                     const deskMat = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 0.7 });
@@ -887,7 +941,7 @@
 
                         const crt = new THREE.Mesh(crtGeo, crtMat);
                         crt.position.set(i, 4.3, 0.5); // Placed slightly toward the customer
-                        
+
                         const screen = new THREE.Mesh(screenGeo, screenMat);
                         // Face the employees (who stand at -Z)
                         screen.position.set(0, 0, -0.71);
@@ -903,7 +957,7 @@
 
                         counterGroup.add(crt);
                     }
-                    
+
                     // Add a scanner
                     const scanGeo = new THREE.BoxGeometry(0.3, 0.4, 0.6);
                     const scanMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
@@ -923,16 +977,16 @@
                     matCanvas.width = 512;
                     matCanvas.height = 256; // 8:4 approx ratio
                     const ctx = matCanvas.getContext('2d');
-                    
+
                     // Background
                     ctx.fillStyle = '#0000aa';
                     ctx.fillRect(0, 0, 512, 256);
-                    
+
                     // Border
                     ctx.strokeStyle = '#ffcc00';
                     ctx.lineWidth = 16;
                     ctx.strokeRect(16, 16, 480, 224);
-                    
+
                     // Text
                     ctx.fillStyle = '#ffcc00';
                     ctx.textAlign = 'center';
@@ -940,13 +994,13 @@
                     ctx.fillText('WELCOME', 256, 110);
                     ctx.font = 'bold 30px Arial';
                     ctx.fillText('BE KIND, PLEASE REWIND', 256, 170);
-                    
+
                     const matTex = new THREE.CanvasTexture(matCanvas);
                     matTex.colorSpace = THREE.SRGBColorSpace;
                     const matMat = new THREE.MeshStandardMaterial({ map: matTex, roughness: 1.0 });
                     const matSide = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 1.0 });
                     const matMats = [matSide, matSide, matMat, matSide, matSide, matSide]; // Top face is index 2
-                    
+
                     // Give it 0.04 thickness to act as a real physical rug on the floor
                     const matGeo = new THREE.BoxGeometry(8, 0.04, 5);
                     const mat = new THREE.Mesh(matGeo, matMats);
@@ -957,13 +1011,13 @@
                 // --- Build Floor Displays ---
                 function buildFloorDisplays(movies) {
                     if (!movies || movies.length < 3) return;
-                    
+
                     // Place 3 pedestals in the center aisle, perfectly aligned with the gondolas
                     const positions = [12, -2, -16];
-                    
+
                     const pedGeo = new THREE.BoxGeometry(2.5, 2.5, 2.5);
                     const pedMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-                    
+
                     // Top banner for pedestals
                     const bannerGeo = new THREE.BoxGeometry(2.52, 0.4, 2.52);
                     const bannerMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
@@ -981,29 +1035,29 @@
                     const txtTex = new THREE.CanvasTexture(txtCanvas);
                     txtTex.colorSpace = THREE.SRGBColorSpace;
                     const txtMat = new THREE.MeshStandardMaterial({ map: txtTex, roughness: 0.8 });
-                    
+
                     // Material array so the text only goes on the 4 sides
                     const bannerMats = [txtMat, txtMat, bannerMat, bannerMat, txtMat, txtMat];
-                    
+
                     positions.forEach((zPos, index) => {
                         const group = new THREE.Group();
                         group.position.set(0, -1.5, zPos);
-                        
+
                         // Base box
                         const base = new THREE.Mesh(pedGeo, pedMat);
                         base.position.y = 1.25; // 2.5 / 2
                         group.add(base);
-                        
+
                         // Yellow banner wrapped around the top edge
                         const banner = new THREE.Mesh(bannerGeo, bannerMats);
                         banner.position.y = 2.31; // Shift up slightly to prevent Z-fighting with top of black box
                         group.add(banner);
-                        
+
                         // Pick a random movie to highlight on top!
                         const movie = movies[index % movies.length];
-                        
+
                         const imgUrl = `${jfServer}/Items/${movie.Id}/Images/Primary?maxWidth=400&quality=90`;
-                        
+
                         fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
                             .then(res => res.blob())
                             .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
@@ -1016,47 +1070,30 @@
                                 caseGroup.position.set(0, 3.4, 0); // Sit on top of pedestal
                                 caseGroup.rotation.x = -0.2; // Lean it back slightly
                                 caseGroup.rotation.y = (Math.random() - 0.5) * 0.4; // Slightly organic rotation
-                                
+
                                 const ud = { item: movie, bitmap: bmp, id: movie.Id, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                                 caseGroup.userData = ud;
 
-                                const caseShape = new THREE.Shape();
-                                const w = 0.96, h = 1.46, r = 0.05;
-                                caseShape.moveTo(-w/2, -h/2 + r);
-                                caseShape.lineTo(-w/2, h/2 - r);
-                                caseShape.quadraticCurveTo(-w/2, h/2, -w/2 + r, h/2);
-                                caseShape.lineTo(w/2 - r, h/2);
-                                caseShape.quadraticCurveTo(w/2, h/2, w/2, h/2 - r);
-                                caseShape.lineTo(w/2, -h/2 + r);
-                                caseShape.quadraticCurveTo(w/2, -h/2, w/2 - r, -h/2);
-                                caseShape.lineTo(-w/2 + r, -h/2);
-                                caseShape.quadraticCurveTo(-w/2, -h/2, -w/2, -h/2 + r);
-                                
-                                const caseGeo = new THREE.ExtrudeGeometry(caseShape, { depth: 0.08, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.02, bevelThickness: 0.01 });
-                                caseGeo.center();
-                                
-                                const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
-                                const caseMesh = new THREE.Mesh(caseGeo, casePlasticMat);
+                                const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
                                 caseMesh.userData = { parentGroup: caseGroup };
                                 caseGroup.add(caseMesh);
 
-                                const frontGeo = new THREE.PlaneGeometry(0.94, 1.44);
                                 const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0 }); // FULLY MATTE
-                                const frontMesh = new THREE.Mesh(frontGeo, frontMat);
+                                const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
                                 frontMesh.position.z = 0.051;
                                 frontMesh.name = 'front';
                                 frontMesh.userData = { parentGroup: caseGroup };
                                 caseGroup.add(frontMesh);
 
                                 // Add dummy planes for back and spine so the inspection generation has targets!
-                                const backMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 1.44), new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 }));
+                                const backMesh = new THREE.Mesh(sharedBackGeo, defaultBackMat);
                                 backMesh.position.z = -0.051;
                                 backMesh.rotation.y = Math.PI;
                                 backMesh.name = 'back';
                                 backMesh.userData = { parentGroup: caseGroup };
                                 caseGroup.add(backMesh);
-                                
-                                const spineMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 1.44), new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 }));
+
+                                const spineMesh = new THREE.Mesh(sharedSpineGeo, defaultSpineMat);
                                 spineMesh.position.x = -0.501;
                                 spineMesh.rotation.y = -Math.PI / 2;
                                 spineMesh.name = 'spine';
@@ -1064,23 +1101,23 @@
                                 caseGroup.add(spineMesh);
 
                                 interactableMeshes.push(caseMesh, frontMesh, backMesh, spineMesh);
-                                
+
                                 // Spotlight shining directly on this highlighted release from the ceiling
                                 const spot = new THREE.SpotLight(0xffffff, 20); // Extremely dim to completely eliminate washout
                                 spot.angle = Math.PI / 12;
                                 spot.penumbra = 0.5;
                                 spot.decay = 2;
                                 spot.distance = 25;
-                                
+
                                 const target = new THREE.Object3D();
                                 target.position.copy(caseGroup.position);
                                 group.add(target);
                                 spot.target = target;
-                                
+
                                 group.add(spot);
                                 group.add(caseGroup);
                             }).catch(e => console.error("Floor display error:", e));
-                        
+
                         scene.add(group);
                     });
                 }
@@ -1126,12 +1163,12 @@
                         // Add a subtle gallery SpotLight pointing down at the poster!
                         const light = new THREE.SpotLight(0xffeedd, 1.2, 15, Math.PI / 4, 0.8, 1);
                         light.position.set(0, 6, 3); // High up and slightly out from the wall
-                        
+
                         // SpotLights need a target to point at
                         const targetObj = new THREE.Object3D();
                         targetObj.position.set(0, 0, 0); // Point exactly at the center of the poster
                         group.add(targetObj);
-                        
+
                         light.target = targetObj;
                         group.add(light);
 
@@ -1253,7 +1290,7 @@
                 ctx.beginPath(); ctx.arc(96, 32, 5, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(32, 96, 5, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(96, 96, 5, 0, Math.PI*2); ctx.fill();
-                
+
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
                 // Repeat density based on physical wall size
@@ -1262,7 +1299,7 @@
                 tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
                 return tex;
             }
-            
+
             const backMat = new THREE.MeshStandardMaterial({ map: createPegboardTexture(), roughness: 0.8, metalness: 0.1 });
             const backGeo = new THREE.BoxGeometry(length, shelfCount * 2 + 2, 0.5);
             const back = new THREE.Mesh(backGeo, backMat);
@@ -1271,32 +1308,8 @@
             gondola.add(back);
             interactableMeshes.push(back);
 
-            // Soft, bevelled clamshell shape
-            const caseShape = new THREE.Shape();
-            const w = 0.96, h = 1.46, r = 0.05; // 0.96 + 0.04 bevels = 1.0. 1.46 + 0.04 = 1.5.
-            caseShape.moveTo(-w/2, -h/2 + r);
-            caseShape.lineTo(-w/2, h/2 - r);
-            caseShape.quadraticCurveTo(-w/2, h/2, -w/2 + r, h/2);
-            caseShape.lineTo(w/2 - r, h/2);
-            caseShape.quadraticCurveTo(w/2, h/2, w/2, h/2 - r);
-            caseShape.lineTo(w/2, -h/2 + r);
-            caseShape.quadraticCurveTo(w/2, -h/2, w/2 - r, -h/2);
-            caseShape.lineTo(-w/2 + r, -h/2);
-            caseShape.quadraticCurveTo(-w/2, -h/2, -w/2, -h/2 + r);
-            
-            const caseGeo = new THREE.ExtrudeGeometry(caseShape, { 
-                depth: 0.08, 
-                bevelEnabled: true, 
-                bevelSegments: 3, 
-                steps: 1, 
-                bevelSize: 0.02, 
-                bevelThickness: 0.01 // 0.08 + 0.02 bevels = 0.10 depth.
-            });
-            caseGeo.center();
-            
-            // Glossy black clamshell plastic for the edges of the movie cases
-            const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
-            
+            // (Soft bevelled clamshell shape and materials now globally shared)
+
             // Create a classic "BE KIND REWIND" rental sticker to slap on random movies
             function createStickerTexture() {
                 const canvas = document.createElement('canvas');
@@ -1308,14 +1321,14 @@
                 ctx.fillRect(5, 5, 118, 118);
                 ctx.fillStyle = '#ffcc00'; // Yellow center
                 ctx.fillRect(10, 10, 108, 108);
-                
+
                 ctx.fillStyle = '#0000aa';
                 ctx.font = 'bold 20px "Helvetica", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('BE KIND', 64, 55);
                 ctx.fillText('PLEASE', 64, 80);
                 ctx.fillText('REWIND', 64, 105);
-                
+
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.colorSpace = THREE.SRGBColorSpace;
                 return tex;
@@ -1345,13 +1358,13 @@
                     const plank = new THREE.Mesh(plankGeo, solidMat);
                     plank.position.set(0, shelfHeight - 0.75, side * 0.6);
                     gondola.add(plank);
-                    
+
                     // Blockbuster Blue Plastic Ticket Rail
                     const railGeo = new THREE.BoxGeometry(length, 0.15, 0.05);
                     const railMat = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 0.3, metalness: 0.1 });
                     const rail = new THREE.Mesh(railGeo, railMat);
                     // 0.6 is the center of the plank (which is 1.2 deep). So +0.6 gets us to the front edge.
-                    rail.position.set(0, shelfHeight - 0.75, side * (0.6 + 0.6 + 0.025)); 
+                    rail.position.set(0, shelfHeight - 0.75, side * (0.6 + 0.6 + 0.025));
                     gondola.add(rail);
 
                     const shelfItems = [];
@@ -1360,25 +1373,18 @@
                         itemIndex++;
                     }
 
+                    const shelfGroups = []; // Dedicated array for THIS specific shelf
+
                     // Parallelize image fetching for this shelf
                     const buildShelfItems = async () => {
                         const itemPromises = shelfItems.map(async (item, i) => {
                             const texData = await loadTexture(item.Id);
 
-                            let frontMat;
-                            if (texData) {
-                                frontMat = new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 });
-                            } else {
-                                frontMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
-                            }
-
-                            // Use a standard dark color for the shelf. It's barely visible anyway!
-                            // Create unique material instances so we can lazily inject textures later on click
-                            const backMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
-                            const spineMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 });
+                            // Use shared fallback material if texture failed to load
+                            let frontMat = texData ? new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 }) : fallbackFrontMat;
 
                             const caseGroup = new THREE.Group();
-                            
+
                             const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
                             caseGroup.position.set(xPos, shelfHeight, side * 0.8);
                             if (side === -1) {
@@ -1387,56 +1393,67 @@
                             } else {
                                 caseGroup.rotation.x = -0.1;
                             }
-                            
+
                             const ud = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                             caseGroup.userData = ud;
 
                             // 1. Puffy Black Plastic Case
-                            const caseMesh = new THREE.Mesh(caseGeo, casePlasticMat);
+                            const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
                             caseMesh.userData = { parentGroup: caseGroup };
                             caseGroup.add(caseMesh);
 
                             // 2. Front Poster Plane (slightly inset)
-                            const frontGeo = new THREE.PlaneGeometry(0.94, 1.44);
-                            const frontMesh = new THREE.Mesh(frontGeo, frontMat);
+                            const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
                             frontMesh.position.z = 0.051;
                             frontMesh.name = 'front';
                             frontMesh.userData = { parentGroup: caseGroup };
                             caseGroup.add(frontMesh);
 
-                            // 3. Back Cover Plane
-                            const backGeo = new THREE.PlaneGeometry(0.94, 1.44);
-                            const backMesh = new THREE.Mesh(backGeo, backMat);
+                            // 3. Back Cover Plane (Uses default shared material until picked up)
+                            const backMesh = new THREE.Mesh(sharedBackGeo, defaultBackMat);
                             backMesh.position.z = -0.051;
                             backMesh.rotation.y = Math.PI;
                             backMesh.name = 'back';
                             backMesh.userData = { parentGroup: caseGroup };
                             caseGroup.add(backMesh);
 
-                            // 4. Spine Plane
-                            const spineGeo = new THREE.PlaneGeometry(0.08, 1.44);
-                            const spineMesh = new THREE.Mesh(spineGeo, spineMat);
+                            // 4. Spine Plane (Uses default shared material until picked up)
+                            const spineMesh = new THREE.Mesh(sharedSpineGeo, defaultSpineMat);
                             spineMesh.position.x = -0.501;
                             spineMesh.rotation.y = -Math.PI / 2;
                             spineMesh.name = 'spine';
                             spineMesh.userData = { parentGroup: caseGroup };
                             caseGroup.add(spineMesh);
-                            
+
                             // 5. 30% chance to have a "BE KIND REWIND" sticker!
                             if (Math.random() < 0.3) {
                                 const sticker = new THREE.Mesh(stickerGeo, stickerMat);
-                                sticker.position.set(0.2, -0.4, 0.052); 
+                                sticker.position.set(0.2, -0.4, 0.052);
                                 sticker.rotation.z = (Math.random() - 0.5) * 0.4;
                                 sticker.userData = { parentGroup: caseGroup };
                                 caseGroup.add(sticker);
                             }
 
                             gondola.add(caseGroup);
-                            interactableMeshes.push(caseMesh, frontMesh, backMesh, spineMesh);
+
+                            // Track movie groups for the hitbox instead of pushing individual meshes
+                            shelfGroups.push(caseGroup);
                         });
                         await Promise.all(itemPromises);
                     };
                     shelfPromises.push(buildShelfItems());
+
+                    // 3. Add an invisible hitbox for the ENTIRE shelf
+                    const shelfHitbox = new THREE.Mesh(
+                        new THREE.BoxGeometry(length, 2.5, 1.5),
+                        new THREE.MeshBasicMaterial({ visible: false })
+                    );
+                    shelfHitbox.position.set(0, shelfHeight, side * 0.8);
+                    shelfHitbox.userData = { isShelf: true, movieGroups: shelfGroups };
+                    gondola.add(shelfHitbox);
+
+                    // ONLY push the hitbox to the global array!
+                    interactableMeshes.push(shelfHitbox);
                 }
             }
 
@@ -1658,6 +1675,7 @@
 
                                 const backPlane = inspectedMesh.children.find(c => c.name === 'back');
                                 if (backPlane) {
+                                    backPlane.material = backPlane.material.clone();
                                     backPlane.material.map = backTex;
                                     backPlane.material.color.setHex(0xffffff);
                                     backPlane.material.needsUpdate = true;
@@ -1665,6 +1683,7 @@
 
                                 const spinePlane = inspectedMesh.children.find(c => c.name === 'spine');
                                 if (spinePlane) {
+                                    spinePlane.material = spinePlane.material.clone();
                                     spinePlane.material.map = spineTex;
                                     spinePlane.material.color.setHex(0xffffff);
                                     spinePlane.material.needsUpdate = true;
@@ -1676,6 +1695,11 @@
 
                             // Temporarily change roughness to matte to prevent glare from washing out the HD cover
                             if (frontPlane) {
+                                // Clone material because it might be the shared fallback material!
+                                if (!inspectedMesh.userData.isFrontCloned) {
+                                    frontPlane.material = frontPlane.material.clone();
+                                    inspectedMesh.userData.isFrontCloned = true;
+                                }
                                 frontPlane.material.roughness = 0.9;
                                 frontPlane.material.needsUpdate = true;
 
@@ -1684,7 +1708,7 @@
                                     inspectedMesh.userData.lowResMap = frontPlane.material.map;
                                 }
                             }
-                            
+
                             const currentMesh = inspectedMesh;
                             const itemId = currentMesh.userData.item.Id;
                             const highResUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=1024&quality=90`;
@@ -1698,7 +1722,7 @@
                                         const highResTex = new THREE.Texture(bmp);
                                         highResTex.colorSpace = THREE.SRGBColorSpace;
                                         highResTex.needsUpdate = true;
-                                        
+
                                         const cFront = currentMesh.children.find(c => c.name === 'front');
                                         if (cFront) {
                                             cFront.material.map = highResTex;
@@ -1756,6 +1780,12 @@
 
                     const frontPlane = inspectedMesh.children.find(c => c.name === 'front');
                     if (frontPlane) {
+                        // Dispose of the high-res texture to free GPU memory!
+                        if (inspectedMesh.userData.highResMap) {
+                            inspectedMesh.userData.highResMap.dispose();
+                            delete inspectedMesh.userData.highResMap;
+                        }
+
                         if (inspectedMesh.userData.lowResMap) {
                             frontPlane.material.map = inspectedMesh.userData.lowResMap;
                         }
@@ -1830,7 +1860,10 @@
             });
 
             let rafId;
-            function animate() {
+            let lastIntersection = null;
+            let lastRaycastTime = 0;
+
+            function animate(time) {
                 rafId = requestAnimationFrame(animate);
 
                 if (currentState === STATE.BROWSE) {
@@ -1839,13 +1872,44 @@
                     currentCameraZ += (targetCameraZ - currentCameraZ) * 0.1;
                     camera.position.z = currentCameraZ;
 
-                    raycaster.setFromCamera(mouse, camera);
-                    // Use recursive intersection so we can hit children of Groups
-                    const intersects = raycaster.intersectObjects(interactableMeshes, true);
+                    // Throttle raycasting to ~30 FPS to save CPU
+                    if (time - lastRaycastTime > 33) {
+                        lastRaycastTime = time;
+                        raycaster.setFromCamera(mouse, camera);
+                        const intersects = raycaster.intersectObjects(interactableMeshes, true);
+                        lastIntersection = intersects.length > 0 ? intersects[0] : null;
+                    }
 
-                    if (intersects.length > 0) {
-                        let hit = intersects[0].object;
+                    if (lastIntersection) {
+                        let hit = lastIntersection.object;
+
+                        if (hit.userData && hit.userData.isShelf && hit.userData.movieGroups) {
+                            // Convert raycast point to shelf's local coordinates
+                            const point = lastIntersection.point.clone(); 
+                            
+                            // Convert to the HITBOX'S local space!
+                            hit.worldToLocal(point);
+                            
+                            // Find the closest movie group to that X coordinate mathematically!
+                            let closestMovie = null;
+                            let minDist = Infinity;
+                            
+                            // Iterate only through the movies on THIS specific shelf
+                            for(let group of hit.userData.movieGroups) {
+                                const dist = Math.abs(point.x - group.position.x);
+                                if (dist < minDist && dist < 0.8) {
+                                    minDist = dist;
+                                    closestMovie = group;
+                                }
+                            }
+                            
+                            if (closestMovie) {
+                                hit = closestMovie; 
+                            }
+                        }
+
                         if (hit.userData && hit.userData.parentGroup) hit = hit.userData.parentGroup;
+
                         if (hoveredMesh !== hit) {
                             // Reset previous hovered mesh
                             if (hoveredMesh) {
@@ -1928,6 +1992,14 @@
                 renderer.dispose();
                 renderer.forceContextLoss();
                 document.body.removeChild(renderer.domElement);
+
+                textureCache.forEach(promise => {
+                    promise.then(data => {
+                        if (data && data.texture) data.texture.dispose();
+                        if (data && data.bitmap) data.bitmap.close(); // Frees native memory
+                    });
+                });
+                textureCache.clear();
             };
         }
 
