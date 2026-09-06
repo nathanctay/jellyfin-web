@@ -811,6 +811,112 @@
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => loadingScreen.style.display = 'none', 500);
 
+                // --- Build Checkout Counter ---
+                function buildCheckoutCounter() {
+                    const counterGroup = new THREE.Group();
+                    // Placed near the front door (Z = 32.3). Customers enter and see the counter at Z = 24.
+                    counterGroup.position.set(0, 0, 24);
+                    
+                    // 1. The Main Desk (Blockbuster Blue)
+                    const deskGeo = new THREE.BoxGeometry(18, 3.5, 4);
+                    const deskMat = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 0.7 });
+                    const desk = new THREE.Mesh(deskGeo, deskMat);
+                    desk.position.set(0, 1.75, 0);
+                    counterGroup.add(desk);
+
+                    // 2. The Countertop (Blockbuster Yellow)
+                    const topGeo = new THREE.BoxGeometry(18.5, 0.2, 4.5);
+                    const topMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.3 });
+                    const top = new THREE.Mesh(topGeo, topMat);
+                    top.position.set(0, 3.6, 0);
+                    counterGroup.add(top);
+
+                    // 3. Drop Box (Returns) on the right side
+                    const dropGeo = new THREE.BoxGeometry(3, 3, 2.5);
+                    const dropMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4 });
+                    const drop = new THREE.Mesh(dropGeo, dropMat);
+                    drop.position.set(6, 1.5, 0.75); // Flush with front of desk
+                    counterGroup.add(drop);
+
+                    const slotGeo = new THREE.PlaneGeometry(2.0, 0.2);
+                    const slotMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                    const slot = new THREE.Mesh(slotGeo, slotMat);
+                    // Front of drop box is at Z = 0.75 + 1.25 = 2.0
+                    slot.position.set(6, 2.2, 2.01);
+                    counterGroup.add(slot);
+
+                    const dropTextGeo = new THREE.PlaneGeometry(2.2, 0.6);
+                    const dropCanvas = document.createElement('canvas');
+                    dropCanvas.width = 256; dropCanvas.height = 64;
+                    const dropCtx = dropCanvas.getContext('2d');
+                    dropCtx.fillStyle = '#ffcc00';
+                    dropCtx.fillRect(0,0,256,64);
+                    dropCtx.fillStyle = '#000000';
+                    dropCtx.font = 'bold 32px "Arial Black"';
+                    dropCtx.textAlign = 'center';
+                    dropCtx.fillText('QUICK DROP', 128, 44);
+                    const dropTex = new THREE.CanvasTexture(dropCanvas);
+                    const dropTextMat = new THREE.MeshBasicMaterial({ map: dropTex });
+                    const dropText = new THREE.Mesh(dropTextGeo, dropTextMat);
+                    dropText.position.set(6, 2.7, 2.01);
+                    counterGroup.add(dropText);
+
+                    // 4. Old CRT Monitors (POS Systems) facing employees
+                    const crtGeo = new THREE.BoxGeometry(1.2, 1.2, 1.4);
+                    const crtMat = new THREE.MeshStandardMaterial({ color: 0xdcd9d0, roughness: 0.8 }); // Beige plastic
+                    const screenGeo = new THREE.PlaneGeometry(1.0, 0.9);
+                    // Draw a classic DOS-style POS screen!
+                    const screenCanvas = document.createElement('canvas');
+                    screenCanvas.width = 128; screenCanvas.height = 128;
+                    const screenCtx = screenCanvas.getContext('2d');
+                    screenCtx.fillStyle = '#0000aa'; // DOS Blue
+                    screenCtx.fillRect(0,0,128,128);
+                    screenCtx.fillStyle = '#ffffff';
+                    screenCtx.font = '12px monospace';
+                    screenCtx.fillText('RENTAL SYSTEM', 10, 20);
+                    screenCtx.fillText('-------------', 10, 35);
+                    screenCtx.fillText('> SCAN ITEM', 10, 55);
+                    screenCtx.fillText('> SWIPE CARD', 10, 75);
+                    const screenTex = new THREE.CanvasTexture(screenCanvas);
+                    const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
+
+                    // Add 3 registers
+                    for (let i of [-5, 0, 5]) {
+                        // Skip the rightmost register to leave room for the drop box
+                        if (i === 5) continue;
+
+                        const crt = new THREE.Mesh(crtGeo, crtMat);
+                        crt.position.set(i, 4.3, 0.5); // Placed slightly toward the customer
+                        
+                        const screen = new THREE.Mesh(screenGeo, screenMat);
+                        // Face the employees (who stand at -Z)
+                        screen.position.set(0, 0, -0.71);
+                        screen.rotation.y = Math.PI;
+                        crt.add(screen);
+
+                        // Add keyboard for employee
+                        const keybGeo = new THREE.BoxGeometry(1.6, 0.1, 0.6);
+                        const keybMat = new THREE.MeshStandardMaterial({ color: 0xc4c1b8, roughness: 0.9 });
+                        const keyboard = new THREE.Mesh(keybGeo, keybMat);
+                        keyboard.position.set(i, 3.75, -1.0); // Placed on employee side of counter
+                        counterGroup.add(keyboard);
+
+                        counterGroup.add(crt);
+                    }
+                    
+                    // Add a scanner
+                    const scanGeo = new THREE.BoxGeometry(0.3, 0.4, 0.6);
+                    const scanMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
+                    for (let i of [-5, 0]) {
+                        const scanner = new THREE.Mesh(scanGeo, scanMat);
+                        scanner.position.set(i + 1.2, 3.8, -0.5);
+                        scanner.rotation.y = -Math.PI / 4;
+                        counterGroup.add(scanner);
+                    }
+
+                    scene.add(counterGroup);
+                }
+
                 // --- Build Wall Posters ---
                 function buildWallPosters(movies) {
                     if (!movies || movies.length === 0) return;
@@ -901,6 +1007,7 @@
 
                 // Build posters AFTER all gondolas finish loading so it doesn't steal network bandwidth!
                 buildWallPosters(allMovies);
+                // buildCheckoutCounter();
             } catch (e) {
                 console.error("Failed to load store data", e);
                 loadingScreen.innerText = "Error loading store.";
@@ -1438,8 +1545,11 @@
 
                             // If it already loaded from a previous inspect, swap it instantly!
                             if (currentMesh.userData.highResMap) {
-                                currentMesh.material[4].map = currentMesh.userData.highResMap;
-                                currentMesh.material[4].needsUpdate = true;
+                                const cFront = currentMesh.children.find(c => c.name === 'front');
+                                if (cFront) {
+                                    cFront.material.map = currentMesh.userData.highResMap;
+                                    cFront.material.needsUpdate = true;
+                                }
                             }
 
                             originalPosition.copy(inspectedMesh.position);
