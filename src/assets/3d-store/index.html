@@ -917,6 +917,173 @@
                     scene.add(counterGroup);
                 }
 
+                // --- Build Welcome Mat ---
+                function buildWelcomeMat() {
+                    const matCanvas = document.createElement('canvas');
+                    matCanvas.width = 512;
+                    matCanvas.height = 256; // 8:4 approx ratio
+                    const ctx = matCanvas.getContext('2d');
+                    
+                    // Background
+                    ctx.fillStyle = '#0000aa';
+                    ctx.fillRect(0, 0, 512, 256);
+                    
+                    // Border
+                    ctx.strokeStyle = '#ffcc00';
+                    ctx.lineWidth = 16;
+                    ctx.strokeRect(16, 16, 480, 224);
+                    
+                    // Text
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 50px "Arial Black"';
+                    ctx.fillText('WELCOME', 256, 110);
+                    ctx.font = 'bold 30px Arial';
+                    ctx.fillText('BE KIND, PLEASE REWIND', 256, 170);
+                    
+                    const matTex = new THREE.CanvasTexture(matCanvas);
+                    matTex.colorSpace = THREE.SRGBColorSpace;
+                    const matMat = new THREE.MeshStandardMaterial({ map: matTex, roughness: 1.0 });
+                    const matSide = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 1.0 });
+                    const matMats = [matSide, matSide, matMat, matSide, matSide, matSide]; // Top face is index 2
+                    
+                    // Give it 0.04 thickness to act as a real physical rug on the floor
+                    const matGeo = new THREE.BoxGeometry(8, 0.04, 5);
+                    const mat = new THREE.Mesh(matGeo, matMats);
+                    mat.position.set(0, -1.48, 27); // Right near the entrance, just in front of the door
+                    scene.add(mat);
+                }
+
+                // --- Build Floor Displays ---
+                function buildFloorDisplays(movies) {
+                    if (!movies || movies.length < 3) return;
+                    
+                    // Place 3 pedestals in the center aisle, perfectly aligned with the gondolas
+                    const positions = [12, -2, -16];
+                    
+                    const pedGeo = new THREE.BoxGeometry(2.5, 2.5, 2.5);
+                    const pedMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+                    
+                    // Top banner for pedestals
+                    const bannerGeo = new THREE.BoxGeometry(2.52, 0.4, 2.52);
+                    const bannerMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
+
+                    // Banner Text
+                    const txtCanvas = document.createElement('canvas');
+                    txtCanvas.width = 256; txtCanvas.height = 64;
+                    const ctx = txtCanvas.getContext('2d');
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.fillRect(0,0,256,64);
+                    ctx.fillStyle = '#0000aa';
+                    ctx.font = 'bold 36px "Arial Black"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('STAFF PICKS', 128, 44);
+                    const txtTex = new THREE.CanvasTexture(txtCanvas);
+                    txtTex.colorSpace = THREE.SRGBColorSpace;
+                    const txtMat = new THREE.MeshStandardMaterial({ map: txtTex, roughness: 0.8 });
+                    
+                    // Material array so the text only goes on the 4 sides
+                    const bannerMats = [txtMat, txtMat, bannerMat, bannerMat, txtMat, txtMat];
+                    
+                    positions.forEach((zPos, index) => {
+                        const group = new THREE.Group();
+                        group.position.set(0, -1.5, zPos);
+                        
+                        // Base box
+                        const base = new THREE.Mesh(pedGeo, pedMat);
+                        base.position.y = 1.25; // 2.5 / 2
+                        group.add(base);
+                        
+                        // Yellow banner wrapped around the top edge
+                        const banner = new THREE.Mesh(bannerGeo, bannerMats);
+                        banner.position.y = 2.31; // Shift up slightly to prevent Z-fighting with top of black box
+                        group.add(banner);
+                        
+                        // Pick a random movie to highlight on top!
+                        const movie = movies[index % movies.length];
+                        
+                        const imgUrl = `${jfServer}/Items/${movie.Id}/Images/Primary?maxWidth=400&quality=90`;
+                        
+                        fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                            .then(res => res.blob())
+                            .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                            .then(bmp => {
+                                const tex = new THREE.Texture(bmp);
+                                tex.colorSpace = THREE.SRGBColorSpace;
+                                tex.needsUpdate = true;
+
+                                const caseGroup = new THREE.Group();
+                                caseGroup.position.set(0, 3.4, 0); // Sit on top of pedestal
+                                caseGroup.rotation.x = -0.2; // Lean it back slightly
+                                caseGroup.rotation.y = (Math.random() - 0.5) * 0.4; // Slightly organic rotation
+                                
+                                const ud = { item: movie, bitmap: bmp, id: movie.Id, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
+                                caseGroup.userData = ud;
+
+                                const caseShape = new THREE.Shape();
+                                const w = 0.96, h = 1.46, r = 0.05;
+                                caseShape.moveTo(-w/2, -h/2 + r);
+                                caseShape.lineTo(-w/2, h/2 - r);
+                                caseShape.quadraticCurveTo(-w/2, h/2, -w/2 + r, h/2);
+                                caseShape.lineTo(w/2 - r, h/2);
+                                caseShape.quadraticCurveTo(w/2, h/2, w/2, h/2 - r);
+                                caseShape.lineTo(w/2, -h/2 + r);
+                                caseShape.quadraticCurveTo(w/2, -h/2, w/2 - r, -h/2);
+                                caseShape.lineTo(-w/2 + r, -h/2);
+                                caseShape.quadraticCurveTo(-w/2, -h/2, -w/2, -h/2 + r);
+                                
+                                const caseGeo = new THREE.ExtrudeGeometry(caseShape, { depth: 0.08, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.02, bevelThickness: 0.01 });
+                                caseGeo.center();
+                                
+                                const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
+                                const caseMesh = new THREE.Mesh(caseGeo, casePlasticMat);
+                                caseMesh.userData = { parentGroup: caseGroup };
+                                caseGroup.add(caseMesh);
+
+                                const frontGeo = new THREE.PlaneGeometry(0.94, 1.44);
+                                const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0 }); // FULLY MATTE
+                                const frontMesh = new THREE.Mesh(frontGeo, frontMat);
+                                frontMesh.position.z = 0.051;
+                                frontMesh.name = 'front';
+                                frontMesh.userData = { parentGroup: caseGroup };
+                                caseGroup.add(frontMesh);
+
+                                // Add dummy planes for back and spine so the inspection generation has targets!
+                                const backMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 1.44), new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 }));
+                                backMesh.position.z = -0.051;
+                                backMesh.rotation.y = Math.PI;
+                                backMesh.name = 'back';
+                                backMesh.userData = { parentGroup: caseGroup };
+                                caseGroup.add(backMesh);
+                                
+                                const spineMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 1.44), new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.5 }));
+                                spineMesh.position.x = -0.501;
+                                spineMesh.rotation.y = -Math.PI / 2;
+                                spineMesh.name = 'spine';
+                                spineMesh.userData = { parentGroup: caseGroup };
+                                caseGroup.add(spineMesh);
+
+                                interactableMeshes.push(caseMesh, frontMesh, backMesh, spineMesh);
+                                
+                                // Spotlight shining directly on this highlighted release from the ceiling
+                                const spot = new THREE.SpotLight(0xffffff, 20); // Extremely dim to completely eliminate washout
+                                spot.angle = Math.PI / 12;
+                                spot.penumbra = 0.5;
+                                spot.decay = 2;
+                                spot.distance = 25;
+                                
+                                const target = new THREE.Object3D();
+                                target.position.copy(caseGroup.position);
+                                group.add(target);
+                                spot.target = target;
+                                
+                                group.add(spot);
+                                group.add(caseGroup);
+                            }).catch(e => console.error("Floor display error:", e));
+                        
+                        scene.add(group);
+                    });
+                }
                 // --- Build Wall Posters ---
                 function buildWallPosters(movies) {
                     if (!movies || movies.length === 0) return;
@@ -1007,6 +1174,8 @@
 
                 // Build posters AFTER all gondolas finish loading so it doesn't steal network bandwidth!
                 buildWallPosters(allMovies);
+                buildWelcomeMat();
+                buildFloorDisplays(allMovies);
                 // buildCheckoutCounter();
             } catch (e) {
                 console.error("Failed to load store data", e);
