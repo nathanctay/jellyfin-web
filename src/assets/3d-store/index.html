@@ -1300,12 +1300,14 @@
             nodeGeo.rotateX(-Math.PI / 2);
 
             const nodePositions = [
-                // Center Aisle
-                {x: 0, z: 20}, {x: 0, z: 12}, {x: 0, z: 5}, {x: 0, z: -2}, {x: 0, z: -9}, {x: 0, z: -16}, {x: 0, z: -23},
-                // Left Side Aisle
-                {x: -20, z: 20}, {x: -20, z: 12}, {x: -20, z: 5}, {x: -20, z: -2}, {x: -20, z: -9}, {x: -20, z: -16}, {x: -20, z: -23},
-                // Right Side Aisle
-                {x: 20, z: 20}, {x: 20, z: 12}, {x: 20, z: 5}, {x: 20, z: -2}, {x: 20, z: -9}, {x: 20, z: -16}, {x: 20, z: -23}
+                // Front aisle (Z = 19)
+                {x: -20, z: 19}, {x: -13, z: 19}, {x: 0, z: 19}, {x: 13, z: 19}, {x: 20, z: 19},
+                // Middle aisle 1 (Z = 5)
+                {x: -20, z: 5}, {x: -13, z: 5}, {x: 0, z: 5}, {x: 13, z: 5}, {x: 20, z: 5},
+                // Middle aisle 2 (Z = -9)
+                {x: -20, z: -9}, {x: -13, z: -9}, {x: 0, z: -9}, {x: 13, z: -9}, {x: 20, z: -9},
+                // Back aisle (Z = -23)
+                {x: -20, z: -23}, {x: -13, z: -23}, {x: 0, z: -23}, {x: 13, z: -23}, {x: 20, z: -23}
             ];
 
             for (let pos of nodePositions) {
