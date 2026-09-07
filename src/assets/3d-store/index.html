@@ -98,10 +98,38 @@
     <script type="module">
         import * as THREE from './vendor/three.module.min.js';
 
-        // 1. Handshake Logic
+
+        // --- DEBUG HUD ---
+        const debugDiv = document.createElement('div');
+        debugDiv.style.position = 'absolute';
+        debugDiv.style.top = '10px';
+        debugDiv.style.left = '10px';
+        debugDiv.style.color = '#ff4444';
+        debugDiv.style.zIndex = '9999';
+        debugDiv.style.background = 'rgba(0,0,0,0.8)';
+        debugDiv.style.padding = '10px';
+        debugDiv.style.fontFamily = 'monospace';
+        debugDiv.style.pointerEvents = 'none';
+        debugDiv.style.maxWidth = '400px';
+        debugDiv.style.wordWrap = 'break-word';
+        document.body.appendChild(debugDiv);
+        
+        window.logDebug = function(msg) {
+            debugDiv.innerText += msg + '\n';
+            console.log("[DEBUG]", msg);
+        };
+        
+        window.addEventListener('error', function(e) {
+            window.logDebug("Global Error: " + e.message + " at " + e.filename + ":" + e.lineno);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            window.logDebug("Unhandled Promise: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+        });
+        // -----------------
+
         let jfToken = null;
-        let jfServer = null;
         let jfUserId = null;
+        let jfServer = null;
 
         // Tell the parent we are ready to receive the auth token
         parent.postMessage({ type: 'READY' }, '*');
@@ -129,6 +157,21 @@
         const hudPlay = document.getElementById('hud-play');
         const loadingScreen = document.getElementById('loading-screen');
         let selectedItem = null;
+
+        // Move network globals to the very top so they are accessible by loadData
+        let ws = null;
+        let myUsername = "Guest_" + Math.floor(Math.random() * 1000); 
+        let networkHeldItems = new Set(); 
+        const movieMeshMap = new Map();
+
+        function hashStr(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = (hash << 5) - hash + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
 
         async function init3D() {
             const scene = new THREE.Scene();
@@ -789,6 +832,18 @@
                 textureCache.set(itemId, promise);
                 return promise;
             }
+
+            // Simple daily seeded PRNG (Mulberry32) so all users see the exact same store today!
+            function mulberry32(a) {
+                return function() {
+                  var t = a += 0x6D2B79F5;
+                  t = Math.imul(t ^ t >>> 15, t | 1);
+                  t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+                }
+            }
+            const todaySeed = Math.floor(Date.now() / 86400000); 
+
             // Start loading data in the background without blocking the render loop
             loadData().catch(e => console.error(e));
         async function loadData() {
@@ -796,9 +851,9 @@
                 const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
                 const fields = 'Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
 
-                function shuffleArray(array) {
+                function shuffleArray(array, rngFunc) {
                     for (let i = array.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
+                        const j = Math.floor(rngFunc() * (i + 1));
                         [array[i], array[j]] = [array[j], array[i]];
                     }
                     return array;
@@ -824,13 +879,51 @@
                     { name: 'Mystery', genre: 'Mystery', sort: 'SortName', randomizeWindow: true }
                 ];
 
-                let lists;
-                const cachedData = sessionStorage.getItem('virtualStoreCache');
+                let lists = [];
+                let manifest = null;
+                
+                try {
+                    const mRes = await fetch('https://nathanbuster-production.up.railway.app/manifest');
+                    const mData = await mRes.json();
+                    if (mData && mData.seed === todaySeed && mData.lists) {
+                        manifest = mData;
+                    }
+                } catch(e) {
+                    window.logDebug("Manifest Fetch Error: " + e.message);
+                    console.warn("Failed to fetch manifest", e);
+                }
 
-                if (cachedData) {
+                const STORE_CACHE_VERSION = 2; // bump whenever layout/seed logic changes
+                const cacheKey = `virtualStoreCache_v${STORE_CACHE_VERSION}_day${todaySeed}`;
+
+                // Purge stale entries from old days / old code versions
+                for (let i = sessionStorage.length - 1; i >= 0; i--) {
+                    const k = sessionStorage.key(i);
+                    if (k && k.startsWith('virtualStoreCache') && k !== cacheKey) sessionStorage.removeItem(k);
+                }
+
+                const cachedData = sessionStorage.getItem(cacheKey);
+
+                if (manifest) {
+                    console.log("[MANIFEST] Adopted server manifest!");
+                    const byId = new Map();
+                    const flat = manifest.lists.flat();
+                    for (let i = 0; i < flat.length; i += 150) {
+                        const chunk = flat.slice(i, i + 150);
+                        const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?Ids=${chunk.join(',')}&Fields=${fields}&Limit=150`,
+                            { headers: { 'X-Emby-Token': jfToken } });
+                        const json = await res.json();
+                        extractItems(json).forEach(it => byId.set(it.Id, it));
+                    }
+                    lists = manifest.lists.map(ids => ids.map(id => byId.get(id)).filter(Boolean));
+                } else if (cachedData) {
                     lists = JSON.parse(cachedData);
                 } else {
-                    const catPromises = categories.map(async (cat) => {
+                    const catPromises = categories.map(async (cat, i) => {
+                        // Create a UNIQUE deterministic PRNG for this specific category index
+                        // This prevents race conditions in network requests from changing the random sequence
+                        const catRNG = mulberry32(todaySeed + i);
+                        
                         const genreParam = cat.genre ? `&Genres=${cat.genre}` : '';
                         const sortParam = cat.sortOrder ? `&SortBy=${cat.sort}&SortOrder=${cat.sortOrder}` : `&SortBy=${cat.sort}`;
 
@@ -843,18 +936,30 @@
 
                         const limit = Math.min(100, total);
                         const maxStart = Math.max(0, total - limit);
-                        const startIndex = cat.randomizeWindow === false ? 0 : Math.floor(Math.random() * maxStart);
+                        const startIndex = cat.randomizeWindow === false ? 0 : Math.floor(catRNG() * maxStart);
 
                         const dataUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=${limit}&StartIndex=${startIndex}${sortParam}&Fields=${fields}${genreParam}`;
                         const res = await fetch(dataUrl, { headers: { 'X-Emby-Token': jfToken } });
                         const data = await res.json();
 
                         let items = extractItems(data);
-                        return shuffleArray(items);
+                        return shuffleArray(items, catRNG);
                     });
 
                     lists = await Promise.all(catPromises);
-                    sessionStorage.setItem('virtualStoreCache', JSON.stringify(lists));
+                    sessionStorage.setItem(cacheKey, JSON.stringify(lists));
+                    
+                    // We need to send this to the server so it becomes the manifest!
+                    const newManifest = {
+                        seed: todaySeed,
+                        lists: lists.map(l => l.map(m => m.Id))
+                    };
+                    if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
+                        console.log("[MANIFEST] Broadcasting our newly computed layout to the server!");
+                        ws.send(JSON.stringify({ type: 'SET_MANIFEST', payload: newManifest }));
+                    } else {
+                        window.pendingManifest = newManifest;
+                    }
                 }
 
                 // Fallback list of all movies in case a genre is completely empty on their server
@@ -1069,7 +1174,9 @@
                                 const caseGroup = new THREE.Group();
                                 caseGroup.position.set(0, 3.4, 0); // Sit on top of pedestal
                                 caseGroup.rotation.x = -0.2; // Lean it back slightly
-                                caseGroup.rotation.y = (Math.random() - 0.5) * 0.4; // Slightly organic rotation
+                                const pedRNG = mulberry32(todaySeed + hashStr(movie.Id));
+                                caseGroup.rotation.y = (pedRNG() - 0.5) * 0.4; // Slightly organic rotation
+                                movieMeshMap.set(movie.Id, caseGroup);
 
                                 const ud = { item: movie, bitmap: bmp, id: movie.Id, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                                 caseGroup.userData = ud;
@@ -1215,6 +1322,7 @@
                 buildFloorDisplays(allMovies);
                 // buildCheckoutCounter();
             } catch (e) {
+                window.logDebug("loadData Error: " + e.message + "\n" + e.stack);
                 console.error("Failed to load store data", e);
                 loadingScreen.innerText = "Error loading store.";
             }
@@ -1394,6 +1502,8 @@
                                 caseGroup.rotation.x = -0.1;
                             }
 
+                            movieMeshMap.set(item.Id, caseGroup);
+
                             const ud = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                             caseGroup.userData = ud;
 
@@ -1426,10 +1536,11 @@
                             caseGroup.add(spineMesh);
 
                             // 5. 30% chance to have a "BE KIND REWIND" sticker!
-                            if (Math.random() < 0.3) {
+                            const slotRNG = mulberry32(todaySeed + hashStr(item.Id));
+                            if (slotRNG() < 0.3) {
                                 const sticker = new THREE.Mesh(stickerGeo, stickerMat);
                                 sticker.position.set(0.2, -0.4, 0.052);
-                                sticker.rotation.z = (Math.random() - 0.5) * 0.4;
+                                sticker.rotation.z = (slotRNG() - 0.5) * 0.4;
                                 sticker.userData = { parentGroup: caseGroup };
                                 caseGroup.add(sticker);
                             }
@@ -1517,7 +1628,267 @@
             camera.rotation.order = 'YXZ'; // Important for FPS-style rotation
             camera.rotation.y = cameraYaw;
             camera.rotation.x = cameraPitch;
+            // --- Multiplayer Networking (Phase 1) ---
+            const networkedPlayers = new Map();
+            let ws = null;
+            let myUsername = "Guest_" + Math.floor(Math.random() * 1000); // Temporary prompt later
+            let networkHeldItems = new Set(); // For Phase 2
 
+            function createAvatar(username) {
+                const group = new THREE.Group();
+                
+                // Retro TV Case (Beige)
+                const tvGeo = new THREE.BoxGeometry(0.8, 0.6, 0.8);
+                const tvMat = new THREE.MeshStandardMaterial({ color: 0xdcd9d0, roughness: 0.8 });
+                const tv = new THREE.Mesh(tvGeo, tvMat);
+                tv.position.y = 1.6; 
+                group.add(tv);
+                
+                // Glass Screen (Black/Glossy)
+                const screenGeo = new THREE.PlaneGeometry(0.64, 0.44);
+                const screenMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.05, metalness: 0.8 });
+                const screen = new THREE.Mesh(screenGeo, screenMat);
+                screen.position.set(0, 1.6, 0.401);
+                group.add(screen);
+
+                // Static/Noise image for the screen
+                const canvasStatic = document.createElement('canvas');
+                canvasStatic.width = 64; canvasStatic.height = 64;
+                const ctxS = canvasStatic.getContext('2d');
+                for(let i=0; i<64; i++) {
+                    for(let j=0; j<64; j++) {
+                        ctxS.fillStyle = Math.random() > 0.5 ? '#222' : '#555';
+                        ctxS.fillRect(i, j, 1, 1);
+                    }
+                }
+                const staticTex = new THREE.CanvasTexture(canvasStatic);
+                const staticGeo = new THREE.PlaneGeometry(0.6, 0.4);
+                const staticMat = new THREE.MeshBasicMaterial({ map: staticTex });
+                const staticScreen = new THREE.Mesh(staticGeo, staticMat);
+                staticScreen.position.set(0, 1.6, 0.402);
+                group.add(staticScreen);
+
+                // Rabbit Ear Antennas (Left & Right)
+                const antGeo = new THREE.CylinderGeometry(0.01, 0.02, 0.5, 8);
+                const antMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.3 });
+                
+                const antLeft = new THREE.Mesh(antGeo, antMat);
+                antLeft.position.set(-0.2, 2.0, 0);
+                antLeft.rotation.z = 0.5;
+                group.add(antLeft);
+
+                const antRight = new THREE.Mesh(antGeo, antMat);
+                antRight.position.set(0.2, 2.0, 0);
+                antRight.rotation.z = -0.5;
+                group.add(antRight);
+
+                // Username Sprite
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.roundRect(0, 0, 512, 128, 64);
+                ctx.fill();
+                ctx.font = 'bold 64px "Helvetica", sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(username, 256, 64);
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: tex });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.position.y = 2.2;
+                sprite.scale.set(1.5, 0.375, 1);
+                group.add(sprite);
+
+                scene.add(group);
+                return group;
+            }
+
+            try {
+                // Connect to live Railway multiplayer server!
+                ws = new WebSocket('wss://nathanbuster-production.up.railway.app');
+                window.logDebug("WS constructor called!");
+                
+                ws.onopen = () => {
+                    window.logDebug("WS OPENED successfully!");
+                    console.log("Connected to Multiplayer Server!");
+                    ws.send(JSON.stringify({
+                        type: 'JOIN',
+                        payload: { username: myUsername, x: currentCameraX, z: currentCameraZ, rotY: cameraYaw }
+                    }));
+
+                    if (window.pendingManifest) {
+                        window.logDebug("[MANIFEST] Broadcasting our layout!");
+                        console.log("[MANIFEST] Broadcasting our layout to the server!");
+                        ws.send(JSON.stringify({
+                            type: 'SET_MANIFEST',
+                            payload: window.pendingManifest
+                        }));
+                        window.pendingManifest = null;
+                    }
+                };
+                
+                ws.onerror = (e) => window.logDebug("WS ERROR");
+                ws.onclose = (e) => {
+                    window.logDebug("WS CLOSED: " + e.code);
+                    // Unlock all movies and hide avatars on disconnect
+                    networkHeldItems.forEach(id => {
+                        const group = movieMeshMap.get(id);
+                        if (group) group.visible = true;
+                    });
+                    networkHeldItems.clear();
+                    networkedPlayers.forEach(p => scene.remove(p.mesh));
+                    networkedPlayers.clear();
+                };
+
+                function applyInspect(playerId, itemId) {
+                    const p = networkedPlayers.get(playerId);
+                    if (!p) return;
+                    
+                    networkHeldItems.add(itemId);
+                    
+                    // Hide the physical movie on the shelf using map
+                    const group = movieMeshMap.get(itemId);
+                    if (group) group.visible = false;
+                    
+                    // Build a dummy case to attach to their avatar!
+                    const dummyGroup = new THREE.Group();
+                    dummyGroup.name = "held_item_" + itemId;
+                    
+                    const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
+                    dummyGroup.add(caseMesh);
+                    
+                    // Add default back/spine
+                    const backMesh = new THREE.Mesh(sharedBackGeo, defaultBackMat);
+                    backMesh.position.z = -0.051; backMesh.rotation.y = Math.PI;
+                    dummyGroup.add(backMesh);
+                    
+                    const spineMesh = new THREE.Mesh(sharedSpineGeo, defaultSpineMat);
+                    spineMesh.position.x = -0.501; spineMesh.rotation.y = -Math.PI / 2;
+                    dummyGroup.add(spineMesh);
+
+                    // Fetch low-res texture for the front
+                    const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=256&quality=90`;
+                    fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                        .then(res => res.blob())
+                        .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                        .then(bmp => {
+                            if (!dummyGroup.parent) return; // Aborted!
+                            const tex = new THREE.Texture(bmp);
+                            tex.colorSpace = THREE.SRGBColorSpace;
+                            tex.needsUpdate = true;
+                            const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.2 });
+                            const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
+                            frontMesh.position.z = 0.051;
+                            dummyGroup.add(frontMesh);
+                        }).catch(() => {
+                            // Fallback if image fails
+                            const frontMesh = new THREE.Mesh(sharedFrontGeo, fallbackFrontMat);
+                            frontMesh.position.z = 0.051;
+                            dummyGroup.add(frontMesh);
+                        });
+                    
+                    // Attach to avatar (floating slightly in front and tilted up)
+                    dummyGroup.position.set(0, 1.2, -0.6); 
+                    dummyGroup.rotation.x = -0.2; 
+                    p.mesh.add(dummyGroup);
+                }
+
+                function applyDrop(playerId, itemId) {
+                    const p = networkedPlayers.get(playerId);
+                    
+                    if (p) {
+                        const dummyGroup = p.mesh.children.find(c => c.name === "held_item_" + itemId);
+                        if (dummyGroup) {
+                            const frontMesh = dummyGroup.children.find(c => c.name === 'front');
+                            if (frontMesh && frontMesh.material) {
+                                if (frontMesh.material.map) frontMesh.material.map.dispose();
+                                frontMesh.material.dispose();
+                            }
+                            p.mesh.remove(dummyGroup);
+                        }
+                    }
+
+                    // Network state sync
+                    if (playerId === myUsername) {
+                        networkHeldItems.delete(itemId);
+                        
+                        // Show it back on the shelf locally using map
+                        const group = movieMeshMap.get(itemId);
+                        if (group) group.visible = true;
+
+                        // --- Multiplayer: Broadcast DROP ---
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: 'DROP',
+                                payload: { id: myUsername, item: itemId }
+                            }));
+                        }
+                    } else {
+                        networkHeldItems.delete(itemId);
+                        // Someone else dropped it, show it on our shelf using map
+                        const group = movieMeshMap.get(itemId);
+                        if (group) group.visible = true;
+                    }
+                }
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'ROOM_STATE') {
+                        // Spawn existing players
+                        const playersList = data.payload.players || data.payload; // Fallback in case of old server
+                        Object.keys(playersList).forEach(id => {
+                            const p = playersList[id];
+                            const avatar = createAvatar(p.username);
+                            avatar.position.set(p.x, 0, p.z);
+                            avatar.rotation.y = p.rotY;
+                            networkedPlayers.set(id, { 
+                                mesh: avatar, 
+                                targetPosition: new THREE.Vector3(p.x, 0, p.z),
+                                targetQuaternion: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.rotY)
+                            });
+                            if (p.heldItem) applyInspect(id, p.heldItem);
+                        });
+                    }
+                    else if (data.type === 'USER_JOINED') {
+                        const p = data.payload;
+                        const avatar = createAvatar(p.username);
+                        avatar.position.set(p.x, 0, p.z);
+                        networkedPlayers.set(p.id, { 
+                            mesh: avatar, 
+                            targetPosition: new THREE.Vector3(p.x, 0, p.z),
+                            targetQuaternion: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.rotY)
+                        });
+                        if (p.heldItem) applyInspect(p.id, p.heldItem);
+                    }
+                    else if (data.type === 'USER_MOVED') {
+                        const p = networkedPlayers.get(data.payload.id);
+                        if (p) {
+                            p.targetPosition.set(data.payload.x, 0, data.payload.z);
+                            p.targetQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), data.payload.rotY);
+                        }
+                    }
+                    else if (data.type === 'USER_LEFT') {
+                        const p = networkedPlayers.get(data.payload.id);
+                        if (p) {
+                            scene.remove(p.mesh);
+                            // DO NOT dispose geometries here, they are shared!
+                            networkedPlayers.delete(data.payload.id);
+                        }
+                    }
+                    else if (data.type === 'USER_INSPECT') {
+                        applyInspect(data.payload.id, data.payload.itemId);
+                    }
+                    else if (data.type === 'USER_DROP') {
+                        applyDrop(data.payload.id, data.payload.itemId);
+                    }
+                };
+            } catch(e) {
+                console.error("Multiplayer connection failed", e);
+            }
 
             // --- State Machine & Inspection ---
             const STATE = { BROWSE: 0, INSPECT: 1, PLAYING: 2 };
@@ -1771,6 +2142,14 @@
                             hudTitle.innerText = selectedItem.title || selectedItem.name;
                             hud.classList.add('show');
                             document.body.style.cursor = 'grab';
+
+                            // --- Multiplayer: Broadcast INSPECT ---
+                            if (ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({
+                                    type: 'INSPECT',
+                                    payload: { itemId: selectedItem.item.Id }
+                                }));
+                            }
                         }
                     }
                 } else if (currentState === STATE.INSPECT) {
@@ -1797,6 +2176,14 @@
                     inspectedMesh.userData.originalParent.attach(inspectedMesh);
                     inspectedMesh.position.copy(originalPosition);
                     inspectedMesh.rotation.copy(originalRotation);
+                    
+                    // --- Multiplayer: Broadcast DROP ---
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'DROP',
+                            payload: { itemId: selectedItem.item.Id }
+                        }));
+                    }
 
                     inspectedMesh = null;
                     selectedItem = null;
@@ -1862,9 +2249,14 @@
             let rafId;
             let lastIntersection = null;
             let lastRaycastTime = 0;
+            
+            let lastNetworkSend = 0;
+            const NETWORK_SEND_INTERVAL = 66; // ~15 FPS
+            const clock = new THREE.Clock();
 
             function animate(time) {
                 rafId = requestAnimationFrame(animate);
+                const dt = clock.getDelta();
 
                 if (currentState === STATE.BROWSE) {
                     currentCameraX += (targetCameraX - currentCameraX) * 0.1;
@@ -1879,32 +2271,44 @@
                         const intersects = raycaster.intersectObjects(interactableMeshes, true);
                         lastIntersection = intersects.length > 0 ? intersects[0] : null;
                     }
+                    
+                    // Multiplayer Broadcasting
+                    if (ws && ws.readyState === WebSocket.OPEN && (time - lastNetworkSend > NETWORK_SEND_INTERVAL)) {
+                        lastNetworkSend = time;
+                        ws.send(JSON.stringify({
+                            type: 'MOVE',
+                            payload: { x: currentCameraX, z: currentCameraZ, rotY: cameraYaw }
+                        }));
+                    }
 
                     if (lastIntersection) {
                         let hit = lastIntersection.object;
 
                         if (hit.userData && hit.userData.isShelf && hit.userData.movieGroups) {
                             // Convert raycast point to shelf's local coordinates
-                            const point = lastIntersection.point.clone();
-
+                            const point = lastIntersection.point.clone(); 
+                            
                             // Convert to the HITBOX'S local space!
                             hit.worldToLocal(point);
-
+                            
                             // Find the closest movie group to that X coordinate mathematically!
                             let closestMovie = null;
                             let minDist = Infinity;
-
+                            
                             // Iterate only through the movies on THIS specific shelf
                             for(let group of hit.userData.movieGroups) {
+                                // Block interaction if someone else is holding it (Phase 2)
+                                if (networkHeldItems.has(group.userData.id)) continue;
+
                                 const dist = Math.abs(point.x - group.position.x);
                                 if (dist < minDist && dist < 0.8) {
                                     minDist = dist;
                                     closestMovie = group;
                                 }
                             }
-
+                            
                             if (closestMovie) {
-                                hit = closestMovie;
+                                hit = closestMovie; 
                             }
                         }
 
@@ -1963,6 +2367,13 @@
                     // Multiply them: this perfectly spins the movie on its vertical axis RELATIVE to the screen
                     inspectedMesh.quaternion.copy(baseQuat).multiply(spinQuat);
                 }
+
+                // Interpolate networked avatars (frame-rate independent)
+                networkedPlayers.forEach(avatar => {
+                    const lerpFactor = 1 - Math.exp(-8.0 * dt);
+                    avatar.mesh.position.lerp(avatar.targetPosition, lerpFactor);
+                    avatar.mesh.quaternion.slerp(avatar.targetQuaternion, lerpFactor);
+                });
 
                 renderer.render(scene, camera);
             }
