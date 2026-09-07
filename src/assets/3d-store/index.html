@@ -163,6 +163,7 @@
         let myUsername = "Guest_" + Math.floor(Math.random() * 1000); 
         let networkHeldItems = new Set(); 
         const movieMeshMap = new Map();
+        let globalInstanceCounter = 0;
 
         function hashStr(str) {
             let hash = 0;
@@ -1176,9 +1177,11 @@
                                 caseGroup.rotation.x = -0.2; // Lean it back slightly
                                 const pedRNG = mulberry32(todaySeed + hashStr(movie.Id));
                                 caseGroup.rotation.y = (pedRNG() - 0.5) * 0.4; // Slightly organic rotation
-                                movieMeshMap.set(movie.Id, caseGroup);
+                                const instanceId = 'pedestal_' + index + '_' + movie.Id;
+                                movieMeshMap.set(instanceId, caseGroup);
+                                if (networkHeldItems.has(instanceId)) caseGroup.visible = false;
 
-                                const ud = { item: movie, bitmap: bmp, id: movie.Id, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
+                                const ud = { item: movie, bitmap: bmp, id: instanceId, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                                 caseGroup.userData = ud;
 
                                 const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
@@ -1210,11 +1213,12 @@
                                 interactableMeshes.push(caseMesh, frontMesh, backMesh, spineMesh);
 
                                 // Spotlight shining directly on this highlighted release from the ceiling
-                                const spot = new THREE.SpotLight(0xffffff, 20); // Extremely dim to completely eliminate washout
-                                spot.angle = Math.PI / 12;
-                                spot.penumbra = 0.5;
+                                const spot = new THREE.SpotLight(0xfff0dd, 1.5); // Warm light, much softer intensity
+                                spot.position.set(0, 16.5, 4); // Put it all the way up on the ceiling, firmly in front
+                                spot.angle = Math.PI / 16; // Tighter beam
+                                spot.penumbra = 0.8; // Softer edges
                                 spot.decay = 2;
-                                spot.distance = 25;
+                                spot.distance = 30;
 
                                 const target = new THREE.Object3D();
                                 target.position.copy(caseGroup.position);
@@ -1502,9 +1506,12 @@
                                 caseGroup.rotation.x = -0.1;
                             }
 
-                            movieMeshMap.set(item.Id, caseGroup);
+                            // position.x, position.z, side, shelf index (s), and item index guarantee absolute uniqueness
+                            const instanceId = 'gondola_' + position.x + '_' + position.z + '_' + side + '_' + s + '_' + item.Id;
+                            movieMeshMap.set(instanceId, caseGroup);
+                            if (networkHeldItems.has(instanceId)) caseGroup.visible = false;
 
-                            const ud = { item: item, bitmap: texData ? texData.bitmap : null, id: item.Id, title: item.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
+                            const ud = { item: item, bitmap: texData ? texData.bitmap : null, id: instanceId, title: item.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                             caseGroup.userData = ud;
 
                             // 1. Puffy Black Plastic Case
@@ -1769,8 +1776,9 @@
                     spineMesh.position.x = -0.501; spineMesh.rotation.y = -Math.PI / 2;
                     dummyGroup.add(spineMesh);
 
-                    // Fetch low-res texture for the front
-                    const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=256&quality=90`;
+                    // Fetch low-res texture for the front using actual Jellyfin ID (which is at the end of the instance string)
+                    const jfItemId = itemId.split('_').pop();
+                    const imgUrl = `${jfServer}/Items/${jfItemId}/Images/Primary?maxWidth=256&quality=90`;
                     fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
                         .then(res => res.blob())
                         .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
@@ -1811,27 +1819,10 @@
                         }
                     }
 
-                    // Network state sync
-                    if (playerId === myUsername) {
-                        networkHeldItems.delete(itemId);
-                        
-                        // Show it back on the shelf locally using map
-                        const group = movieMeshMap.get(itemId);
-                        if (group) group.visible = true;
-
-                        // --- Multiplayer: Broadcast DROP ---
-                        if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({
-                                type: 'DROP',
-                                payload: { id: myUsername, item: itemId }
-                            }));
-                        }
-                    } else {
-                        networkHeldItems.delete(itemId);
-                        // Someone else dropped it, show it on our shelf using map
-                        const group = movieMeshMap.get(itemId);
-                        if (group) group.visible = true;
-                    }
+                    // Unlock the movie on our local shelf
+                    networkHeldItems.delete(itemId);
+                    const group = movieMeshMap.get(itemId);
+                    if (group) group.visible = true;
                 }
 
                 ws.onmessage = (event) => {
@@ -2147,7 +2138,7 @@
                             if (ws && ws.readyState === WebSocket.OPEN) {
                                 ws.send(JSON.stringify({
                                     type: 'INSPECT',
-                                    payload: { itemId: selectedItem.item.Id }
+                                    payload: { itemId: selectedItem.id }
                                 }));
                             }
                         }
@@ -2181,7 +2172,7 @@
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(JSON.stringify({
                             type: 'DROP',
-                            payload: { itemId: selectedItem.item.Id }
+                            payload: { itemId: selectedItem.id }
                         }));
                     }
 
