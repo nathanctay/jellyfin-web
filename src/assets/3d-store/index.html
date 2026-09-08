@@ -141,7 +141,8 @@
                 jfToken = event.data.payload.token;
                 jfServer = event.data.payload.serverUrl;
                 jfUserId = event.data.payload.userId;
-                console.log("3D Store received AUTH. Token:", jfToken ? "Present" : "Missing", "Server:", jfServer, "User:", jfUserId);
+                if (event.data.payload.username) myUsername = event.data.payload.username;
+                console.log("3D Store received AUTH. Token:", jfToken ? "Present" : "Missing", "Server:", jfServer, "User:", jfUserId, "Name:", myUsername);
                 init3D();
             } else if (event.data && event.data.type === 'SEERR_DATA') {
                 console.log("Received Seerr Data", event.data.payload);
@@ -1687,25 +1688,24 @@
             camera.rotation.x = cameraPitch;
             // --- Multiplayer Networking (Phase 1) ---
             const networkedPlayers = new Map();
-            let ws = null;
-            let myUsername = "Guest_" + Math.floor(Math.random() * 1000); // Temporary prompt later
-            let networkHeldItems = new Set(); // For Phase 2
+            // Globals ws, myUsername, networkHeldItems already defined at top of file
 
-            function createAvatar(username) {
+            function createAvatar(username, userId) {
                 const group = new THREE.Group();
                 
                 // Retro TV Case (Beige)
-                const tvGeo = new THREE.BoxGeometry(0.8, 0.6, 0.8);
+                const tvGeo = new THREE.BoxGeometry(1.6, 1.2, 1.6);
                 const tvMat = new THREE.MeshStandardMaterial({ color: 0xdcd9d0, roughness: 0.8 });
                 const tv = new THREE.Mesh(tvGeo, tvMat);
-                tv.position.y = 1.6; 
+                tv.position.y = 7.9; 
                 group.add(tv);
                 
                 // Glass Screen (Black/Glossy)
-                const screenGeo = new THREE.PlaneGeometry(0.64, 0.44);
+                const screenGeo = new THREE.PlaneGeometry(1.28, 0.88);
                 const screenMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.05, metalness: 0.8 });
                 const screen = new THREE.Mesh(screenGeo, screenMat);
-                screen.position.set(0, 1.6, 0.401);
+                screen.position.set(0, 7.9, -0.801);
+                screen.rotation.y = Math.PI;
                 group.add(screen);
 
                 // Static/Noise image for the screen
@@ -1719,23 +1719,41 @@
                     }
                 }
                 const staticTex = new THREE.CanvasTexture(canvasStatic);
-                const staticGeo = new THREE.PlaneGeometry(0.6, 0.4);
+                const staticGeo = new THREE.PlaneGeometry(1.2, 0.8);
                 const staticMat = new THREE.MeshBasicMaterial({ map: staticTex });
                 const staticScreen = new THREE.Mesh(staticGeo, staticMat);
-                staticScreen.position.set(0, 1.6, 0.402);
+                staticScreen.position.set(0, 7.9, -0.802);
+                staticScreen.rotation.y = Math.PI;
                 group.add(staticScreen);
+                if (userId && jfServer && jfToken) {
+                    const imgUrl = `${jfServer}/Users/${userId}/Images/Primary?quality=90`;
+                    fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                        .then(res => {
+                            if (!res.ok) throw new Error('No avatar');
+                            return res.blob();
+                        })
+                        .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                        .then(bmp => {
+                            const tex = new THREE.CanvasTexture(bmp);
+                            staticScreen.material.map = tex;
+                            staticScreen.material.needsUpdate = true;
+                        })
+                        .catch(err => {
+                            // Keep static
+                        });
+                }
 
                 // Rabbit Ear Antennas (Left & Right)
-                const antGeo = new THREE.CylinderGeometry(0.01, 0.02, 0.5, 8);
+                const antGeo = new THREE.CylinderGeometry(0.02, 0.04, 1.0, 8);
                 const antMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.3 });
                 
                 const antLeft = new THREE.Mesh(antGeo, antMat);
-                antLeft.position.set(-0.2, 2.0, 0);
+                antLeft.position.set(-0.4, 8.7, 0);
                 antLeft.rotation.z = 0.5;
                 group.add(antLeft);
 
                 const antRight = new THREE.Mesh(antGeo, antMat);
-                antRight.position.set(0.2, 2.0, 0);
+                antRight.position.set(0.4, 8.7, 0);
                 antRight.rotation.z = -0.5;
                 group.add(antRight);
 
@@ -1755,8 +1773,8 @@
                 const tex = new THREE.CanvasTexture(canvas);
                 const spriteMat = new THREE.SpriteMaterial({ map: tex });
                 const sprite = new THREE.Sprite(spriteMat);
-                sprite.position.y = 2.2;
-                sprite.scale.set(1.5, 0.375, 1);
+                sprite.position.y = 9.5;
+                sprite.scale.set(3.0, 0.75, 1);
                 group.add(sprite);
 
                 scene.add(group);
@@ -1778,7 +1796,7 @@
                     console.log("Connected to Multiplayer Server!");
                     ws.send(JSON.stringify({
                         type: 'JOIN',
-                        payload: { username: myUsername, x: currentCameraX, z: currentCameraZ, rotY: cameraYaw }
+                        payload: { username: myUsername, userId: jfUserId, x: currentCameraX, z: currentCameraZ, rotY: cameraYaw }
                     }));
 
                     if (window.pendingManifest) {
@@ -1920,7 +1938,7 @@
                     }
                     
                     // Attach to avatar (floating slightly in front and tilted up)
-                    dummyGroup.position.set(0, 1.2, -0.6); 
+                    dummyGroup.position.set(0, 6.9, -1.2); 
                     dummyGroup.rotation.x = -0.2; 
                     p.mesh.add(dummyGroup);
                 }
@@ -1958,7 +1976,7 @@
                         const playersList = data.payload.players || data.payload; // Fallback in case of old server
                         Object.keys(playersList).forEach(id => {
                             const p = playersList[id];
-                            const avatar = createAvatar(p.username);
+                            const avatar = createAvatar(p.username, p.userId);
                             avatar.position.set(p.x, 0, p.z);
                             avatar.rotation.y = p.rotY;
                             networkedPlayers.set(id, { 
@@ -1971,7 +1989,7 @@
                     }
                     else if (data.type === 'USER_JOINED') {
                         const p = data.payload;
-                        const avatar = createAvatar(p.username);
+                        const avatar = createAvatar(p.username, p.userId);
                         avatar.position.set(p.x, 0, p.z);
                         networkedPlayers.set(p.id, { 
                             mesh: avatar, 

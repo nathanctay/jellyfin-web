@@ -31,6 +31,7 @@ export default function VirtualStore() {
                     token: apiClient.accessToken(),
                     serverUrl: apiClient.serverAddress(),
                     userId: apiClient.getCurrentUserId(),
+                    username: user?.Name || 'Guest',
                     locale: 'en-US',
                     theme: 'dark'
                 };
