@@ -11,7 +11,7 @@ import { getCurrentDateTimeLocale } from 'lib/globalize';
 import type { ItemDto } from 'types/base/models/item-dto';
 import { useApi } from 'hooks/useApi';
 import { OutboundWebSocketMessageType } from '@jellyfin/sdk/lib/websocket';
-import type { RefreshProgressMessage } from '@jellyfin/sdk/lib/generated-client/models/refresh-progress-message';
+import type { RefreshProgressMessage } from '@jellyfin/sdk/lib/generated-client';
 
 function CircularProgressWithLabel(
     props: CircularProgressProps & { value: number }

@@ -1,6 +1,6 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
 import type { ApiClient } from 'jellyfin-apiclient';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import { randomInt } from '../number';
 
 export interface ScaleImageOptions {

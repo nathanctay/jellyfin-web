@@ -16,7 +16,7 @@ import RunningTasksWidget from '../components/widgets/RunningTasksWidget';
 import DevicesWidget from '../components/widgets/DevicesWidget';
 import { useStartTask } from '../features/tasks/api/useStartTask';
 import ItemCountsWidget from '../components/widgets/ItemCountsWidget';
-import { TaskState } from '@jellyfin/sdk/lib/generated-client/models/task-state';
+import { TaskState } from '@jellyfin/sdk/lib/generated-client';
 
 export const Component = () => {
     const [ isRestartConfirmDialogOpen, setIsRestartConfirmDialogOpen ] = useState(false);

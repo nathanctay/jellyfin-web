@@ -1,9 +1,9 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
-import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
-import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
+import { ItemFields } from '@jellyfin/sdk/lib/generated-client';
+import type { UserDto } from '@jellyfin/sdk/lib/generated-client';
 import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 

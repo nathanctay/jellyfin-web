@@ -1,5 +1,5 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import React, { type FC } from 'react';
 
 import Image from './Image';

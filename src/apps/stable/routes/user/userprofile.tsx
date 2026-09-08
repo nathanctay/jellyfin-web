@@ -1,5 +1,5 @@
 import type { UserDto } from '@jellyfin/sdk/lib/generated-client';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import React, { FunctionComponent, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import UserPasswordForm from 'components/dashboard/users/UserPasswordForm';
-import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
+import type { UserDto } from '@jellyfin/sdk/lib/generated-client';
 
 interface PasswordProps {
     user: UserDto;

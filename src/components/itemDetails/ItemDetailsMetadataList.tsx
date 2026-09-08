@@ -1,8 +1,8 @@
 import React, { type FC } from 'react';
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
-import type { NameGuidPair } from '@jellyfin/sdk/lib/generated-client/models/name-guid-pair';
-import { PersonKind } from '@jellyfin/sdk/lib/generated-client/models/person-kind';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import type { NameGuidPair } from '@jellyfin/sdk/lib/generated-client';
+import { PersonKind } from '@jellyfin/sdk/lib/generated-client';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import LinkButton from 'elements/emby-button/LinkButton';

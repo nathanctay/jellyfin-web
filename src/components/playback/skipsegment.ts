@@ -1,6 +1,6 @@
 import { PlaybackManager } from './playbackmanager';
 import { TICKS_PER_MILLISECOND, TICKS_PER_SECOND } from 'constants/time';
-import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client/models/media-segment-dto';
+import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client';
 import type { PlaybackStopInfo } from 'types/playbackStopInfo';
 import { PlaybackSubscriber } from 'apps/stable/features/playback/utils/playbackSubscriber';
 import { isInSegment } from 'apps/stable/features/playback/utils/mediaSegments';

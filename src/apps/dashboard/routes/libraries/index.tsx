@@ -8,7 +8,7 @@ import { useVirtualFolders } from 'apps/dashboard/features/libraries/api/useVirt
 import useLiveTasks from 'apps/dashboard/features/tasks/hooks/useLiveTasks';
 import { useStartTask } from 'apps/dashboard/features/tasks/api/useStartTask';
 import TaskProgress from 'apps/dashboard/features/tasks/components/TaskProgress';
-import { TaskState } from '@jellyfin/sdk/lib/generated-client/models/task-state';
+import { TaskState } from '@jellyfin/sdk/lib/generated-client';
 import Grid from '@mui/material/Grid';
 import LibraryCard from 'apps/dashboard/features/libraries/components/LibraryCard';
 import Loading from 'components/loading/LoadingComponent';

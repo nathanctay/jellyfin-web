@@ -363,7 +363,7 @@
             const casePlasticMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
 
             const caseShape = new THREE.Shape();
-            const w = 0.96, h = 1.46, r = 0.05; // 0.96 + 0.04 bevels = 1.0. 1.46 + 0.04 = 1.5.
+            const w = 0.89, h = 1.59, r = 0.02; // VHS Dimensions: 0.9 wide, 1.6 high
             caseShape.moveTo(-w/2, -h/2 + r);
             caseShape.lineTo(-w/2, h/2 - r);
             caseShape.quadraticCurveTo(-w/2, h/2, -w/2 + r, h/2);
@@ -375,13 +375,14 @@
             caseShape.quadraticCurveTo(-w/2, -h/2, -w/2, -h/2 + r);
 
             const sharedCaseGeo = new THREE.ExtrudeGeometry(caseShape, {
-                depth: 0.08, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.02, bevelThickness: 0.01
+                depth: 0.21, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 // VHS Depth: 0.22
             });
             sharedCaseGeo.center();
 
-            const sharedFrontGeo = new THREE.PlaneGeometry(0.94, 1.44);
-            const sharedBackGeo = new THREE.PlaneGeometry(0.94, 1.44);
-            const sharedSpineGeo = new THREE.PlaneGeometry(0.08, 1.44);
+            const sharedFrontGeo = new THREE.PlaneGeometry(0.89, 1.59);
+            const sharedBackGeo = new THREE.PlaneGeometry(0.89, 1.59);
+            const sharedSpineGeo = new THREE.PlaneGeometry(0.21, 1.59);
+            const sharedTopGeo = new THREE.PlaneGeometry(0.89, 0.21);
 
             // Floor
             const floorGeo = new THREE.PlaneGeometry(100, 100);
@@ -1171,6 +1172,8 @@
                                 tex.colorSpace = THREE.SRGBColorSpace;
                                 tex.needsUpdate = true;
 
+                                const sleeveMat = defaultSpineMat;
+
                                 const caseGroup = new THREE.Group();
                                 caseGroup.position.set(0, 3.4, 0); // Sit on top of pedestal
                                 caseGroup.rotation.x = -0.2; // Lean it back slightly
@@ -1183,33 +1186,60 @@
                                 const ud = { item: movie, bitmap: bmp, id: instanceId, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                                 caseGroup.userData = ud;
 
-                                const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
-                                caseMesh.userData = { parentGroup: caseGroup };
-                                caseGroup.add(caseMesh);
+                            const visualGroup = new THREE.Group();
+                            visualGroup.name = 'visualGroup';
+                            caseGroup.add(visualGroup);
+                            
+                            const hitBox = new THREE.Mesh(
+                                new THREE.BoxGeometry(0.89, 1.59, 0.25),
+                                new THREE.MeshBasicMaterial({ visible: false })
+                            );
+                            hitBox.position.set(0.445, 0.795, 0.105);
+                            hitBox.userData = { parentGroup: caseGroup };
+                            caseGroup.add(hitBox);
+                            interactableMeshes.push(caseGroup);
+
+                            const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
+                            caseMesh.userData = { parentGroup: caseGroup };
+                            visualGroup.add(caseMesh);
 
                                 const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0 }); // FULLY MATTE
                                 const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
-                                frontMesh.position.z = 0.051;
+                                frontMesh.position.z = 0.111;
                                 frontMesh.name = 'front';
                                 frontMesh.userData = { parentGroup: caseGroup };
-                                caseGroup.add(frontMesh);
+                                visualGroup.add(frontMesh);
 
                                 // Add dummy planes for back and spine so the inspection generation has targets!
-                                const backMesh = new THREE.Mesh(sharedBackGeo, defaultBackMat);
-                                backMesh.position.z = -0.051;
+                                const backMesh = new THREE.Mesh(sharedBackGeo, sleeveMat);
+                                backMesh.position.z = -0.111;
                                 backMesh.rotation.y = Math.PI;
                                 backMesh.name = 'back';
                                 backMesh.userData = { parentGroup: caseGroup };
-                                caseGroup.add(backMesh);
+                                visualGroup.add(backMesh);
 
-                                const spineMesh = new THREE.Mesh(sharedSpineGeo, defaultSpineMat);
-                                spineMesh.position.x = -0.501;
+                                const spineMesh = new THREE.Mesh(sharedSpineGeo, sleeveMat);
+                                spineMesh.position.x = -0.451;
                                 spineMesh.rotation.y = -Math.PI / 2;
                                 spineMesh.name = 'spine';
                                 spineMesh.userData = { parentGroup: caseGroup };
-                                caseGroup.add(spineMesh);
+                                visualGroup.add(spineMesh);
 
-                                interactableMeshes.push(caseMesh, frontMesh, backMesh, spineMesh);
+                                const rightSpineMesh = new THREE.Mesh(sharedSpineGeo, sleeveMat);
+                                rightSpineMesh.position.x = 0.451;
+                                rightSpineMesh.rotation.y = Math.PI / 2;
+                                rightSpineMesh.name = 'right_spine';
+                                rightSpineMesh.userData = { parentGroup: caseGroup };
+                                visualGroup.add(rightSpineMesh);
+
+                                const topMesh = new THREE.Mesh(sharedTopGeo, sleeveMat);
+                                topMesh.position.y = 0.801;
+                                topMesh.rotation.x = -Math.PI / 2;
+                                topMesh.name = 'top';
+                                topMesh.userData = { parentGroup: caseGroup };
+                                visualGroup.add(topMesh);
+
+                                
 
                                 // Spotlight shining directly on this highlighted release from the ceiling
                                 const spot = new THREE.SpotLight(0xfff0dd, 1.5); // Warm light, much softer intensity
@@ -1491,8 +1521,9 @@
                         const itemPromises = shelfItems.map(async (item, i) => {
                             const texData = await loadTexture(item.Id);
 
-                            // Use shared fallback material if texture failed to load
-                            let frontMat = texData ? new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.2 }) : fallbackFrontMat;
+                            // Use shared fallback material if texture failed to load (roughness 0.8 for cardboard VHS look)
+                            let frontMat = texData ? new THREE.MeshStandardMaterial({ map: texData.texture, roughness: 0.8 }) : fallbackFrontMat;
+                            let sleeveMat = defaultSpineMat;
 
                             const caseGroup = new THREE.Group();
 
@@ -1514,32 +1545,61 @@
                             caseGroup.userData = ud;
 
                             // 1. Puffy Black Plastic Case
+                            const visualGroup = new THREE.Group();
+                            visualGroup.name = 'visualGroup';
+                            caseGroup.add(visualGroup);
+                            
+                            const hitBox = new THREE.Mesh(
+                                new THREE.BoxGeometry(0.89, 1.59, 0.25),
+                                new THREE.MeshBasicMaterial({ visible: false })
+                            );
+                            hitBox.position.set(0.445, 0.795, 0.105);
+                            hitBox.userData = { parentGroup: caseGroup };
+                            caseGroup.add(hitBox);
+                            interactableMeshes.push(caseGroup);
+
                             const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
                             caseMesh.userData = { parentGroup: caseGroup };
-                            caseGroup.add(caseMesh);
+                            visualGroup.add(caseMesh);
 
                             // 2. Front Poster Plane (slightly inset)
                             const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
-                            frontMesh.position.z = 0.051;
+                            frontMesh.position.z = 0.111;
                             frontMesh.name = 'front';
                             frontMesh.userData = { parentGroup: caseGroup };
-                            caseGroup.add(frontMesh);
+                            visualGroup.add(frontMesh);
 
-                            // 3. Back Cover Plane (Uses default shared material until picked up)
-                            const backMesh = new THREE.Mesh(sharedBackGeo, defaultBackMat);
-                            backMesh.position.z = -0.051;
+                            // 3. Back Cover Plane
+                            const backMesh = new THREE.Mesh(sharedBackGeo, sleeveMat);
+                            backMesh.position.z = -0.111;
                             backMesh.rotation.y = Math.PI;
                             backMesh.name = 'back';
                             backMesh.userData = { parentGroup: caseGroup };
-                            caseGroup.add(backMesh);
+                            visualGroup.add(backMesh);
 
-                            // 4. Spine Plane (Uses default shared material until picked up)
-                            const spineMesh = new THREE.Mesh(sharedSpineGeo, defaultSpineMat);
-                            spineMesh.position.x = -0.501;
+                            // 4. Spine Plane
+                            const spineMesh = new THREE.Mesh(sharedSpineGeo, sleeveMat);
+                            spineMesh.position.x = -0.451;
                             spineMesh.rotation.y = -Math.PI / 2;
                             spineMesh.name = 'spine';
                             spineMesh.userData = { parentGroup: caseGroup };
-                            caseGroup.add(spineMesh);
+                            visualGroup.add(spineMesh);
+
+                            const rightSpineMesh = new THREE.Mesh(sharedSpineGeo, sleeveMat);
+                            rightSpineMesh.position.x = 0.451;
+                            rightSpineMesh.rotation.y = Math.PI / 2;
+                            rightSpineMesh.name = 'right_spine';
+                            rightSpineMesh.userData = { parentGroup: caseGroup };
+                            visualGroup.add(rightSpineMesh);
+
+                            const topMesh = new THREE.Mesh(sharedTopGeo, sleeveMat);
+                            topMesh.position.y = 0.801;
+                            topMesh.rotation.x = -Math.PI / 2;
+                            topMesh.name = 'top';
+                            topMesh.userData = { parentGroup: caseGroup };
+                            visualGroup.add(topMesh);
+                            
+                            
 
                             // 5. 30% chance to have a "BE KIND REWIND" sticker!
                             const slotRNG = mulberry32(todaySeed + hashStr(item.Id));
@@ -1548,7 +1608,7 @@
                                 sticker.position.set(0.2, -0.4, 0.052);
                                 sticker.rotation.z = (slotRNG() - 0.5) * 0.4;
                                 sticker.userData = { parentGroup: caseGroup };
-                                caseGroup.add(sticker);
+                                visualGroup.add(sticker);
                             }
 
                             gondola.add(caseGroup);
@@ -1560,17 +1620,7 @@
                     };
                     shelfPromises.push(buildShelfItems());
 
-                    // 3. Add an invisible hitbox for the ENTIRE shelf
-                    const shelfHitbox = new THREE.Mesh(
-                        new THREE.BoxGeometry(length, 2.5, 1.5),
-                        new THREE.MeshBasicMaterial({ visible: false })
-                    );
-                    shelfHitbox.position.set(0, shelfHeight, side * 0.8);
-                    shelfHitbox.userData = { isShelf: true, movieGroups: shelfGroups };
-                    gondola.add(shelfHitbox);
-
-                    // ONLY push the hitbox to the global array!
-                    interactableMeshes.push(shelfHitbox);
+                    // Hitbox removed
                 }
             }
 
@@ -1756,9 +1806,13 @@
                         const dummyGroups = p.mesh.children.filter(c => c.name && c.name.startsWith("held_item_"));
                         dummyGroups.forEach(dummyGroup => {
                             const frontMesh = dummyGroup.children.find(c => c.name === 'front');
-                            if (frontMesh && frontMesh.material) {
+                            if (frontMesh && frontMesh.userData && frontMesh.userData.isDynamicFront && frontMesh.material) {
                                 if (frontMesh.material.map) frontMesh.material.map.dispose();
                                 frontMesh.material.dispose();
+                            }
+                            const backMesh = dummyGroup.children.find(c => c.name === 'back');
+                            if (backMesh && backMesh.userData && backMesh.userData.isDynamicSleeve && backMesh.material) {
+                                backMesh.material.dispose();
                             }
                         });
                         scene.remove(p.mesh);
@@ -1788,36 +1842,82 @@
                     const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
                     dummyGroup.add(caseMesh);
                     
-                    // Add default back/spine
-                    const backMesh = new THREE.Mesh(sharedBackGeo, defaultBackMat);
-                    backMesh.position.z = -0.051; backMesh.rotation.y = Math.PI;
+                    let sourceFrontMat = null;
+                    let sourceSleeveMat = null;
+
+                    if (group) {
+                        const originalFront = group.children.find(c => c.name === 'front');
+                        const originalBack = group.children.find(c => c.name === 'back');
+                        if (originalFront && originalFront.material) sourceFrontMat = originalFront.material;
+                        if (originalBack && originalBack.material) sourceSleeveMat = originalBack.material;
+                    }
+
+                    // Add dummy meshes initially with defaults or source materials
+                    const backMesh = new THREE.Mesh(sharedBackGeo, sourceSleeveMat || defaultBackMat);
+                    backMesh.position.z = -0.111; backMesh.rotation.y = Math.PI;
+                    backMesh.name = 'back';
                     dummyGroup.add(backMesh);
                     
-                    const spineMesh = new THREE.Mesh(sharedSpineGeo, defaultSpineMat);
-                    spineMesh.position.x = -0.501; spineMesh.rotation.y = -Math.PI / 2;
+                    const spineMesh = new THREE.Mesh(sharedSpineGeo, sourceSleeveMat || defaultSpineMat);
+                    spineMesh.position.x = -0.451; spineMesh.rotation.y = -Math.PI / 2;
+                    spineMesh.name = 'spine';
                     dummyGroup.add(spineMesh);
 
-                    // Fetch low-res texture for the front using actual Jellyfin ID (which is at the end of the instance string)
-                    const jfItemId = itemId.split('_').pop();
-                    const imgUrl = `${jfServer}/Items/${jfItemId}/Images/Primary?maxWidth=256&quality=90`;
-                    fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
-                        .then(res => res.blob())
-                        .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
-                        .then(bmp => {
-                            if (!dummyGroup.parent) return; // Aborted!
-                            const tex = new THREE.Texture(bmp);
-                            tex.colorSpace = THREE.SRGBColorSpace;
-                            tex.needsUpdate = true;
-                            const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.2 });
-                            const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
-                            frontMesh.position.z = 0.051;
-                            dummyGroup.add(frontMesh);
-                        }).catch(() => {
-                            // Fallback if image fails
-                            const frontMesh = new THREE.Mesh(sharedFrontGeo, fallbackFrontMat);
-                            frontMesh.position.z = 0.051;
-                            dummyGroup.add(frontMesh);
-                        });
+                    const rightSpineMesh = new THREE.Mesh(sharedSpineGeo, sourceSleeveMat || defaultSpineMat);
+                    rightSpineMesh.position.x = 0.451; rightSpineMesh.rotation.y = Math.PI / 2;
+                    rightSpineMesh.name = 'right_spine';
+                    dummyGroup.add(rightSpineMesh);
+
+                    const topMesh = new THREE.Mesh(sharedTopGeo, sourceSleeveMat || defaultSpineMat);
+                    topMesh.position.y = 0.801; topMesh.rotation.x = -Math.PI / 2;
+                    topMesh.name = 'top';
+                    dummyGroup.add(topMesh);
+
+                    if (sourceFrontMat) {
+                        const frontMesh = new THREE.Mesh(sharedFrontGeo, sourceFrontMat);
+                        frontMesh.position.z = 0.111;
+                        frontMesh.name = 'front';
+                        dummyGroup.add(frontMesh);
+                    } else {
+                        // Fetch low-res texture if the group wasn't loaded yet
+                        const jfItemId = itemId.split('_').pop();
+                        const imgUrl = `${jfServer}/Items/${jfItemId}/Images/Primary?maxWidth=256&quality=90`;
+                        fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                            .then(res => res.blob())
+                            .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
+                            .then(bmp => {
+                                if (!dummyGroup.parent) return; // Aborted!
+                                const tex = new THREE.Texture(bmp);
+                                tex.colorSpace = THREE.SRGBColorSpace;
+                                tex.needsUpdate = true;
+
+                                const canvas = document.createElement('canvas');
+                                canvas.width = 1; canvas.height = 1;
+                                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                                ctx.drawImage(bmp, 0, 0, 1, 1);
+                                const data = ctx.getImageData(0, 0, 1, 1).data;
+                                const avgColor = new THREE.Color(`rgb(${data[0]}, ${data[1]}, ${data[2]})`);
+
+                                const dynamicSleeveMat = new THREE.MeshStandardMaterial({ color: avgColor, roughness: 0.8 });
+                                backMesh.material = dynamicSleeveMat;
+                                spineMesh.material = dynamicSleeveMat;
+                                rightSpineMesh.material = dynamicSleeveMat;
+                                topMesh.material = dynamicSleeveMat;
+
+                                const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
+                                const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
+                                frontMesh.position.z = 0.111;
+                                frontMesh.name = 'front';
+                                frontMesh.userData = { isDynamicFront: true };
+                                backMesh.userData = { isDynamicSleeve: true };
+                                dummyGroup.add(frontMesh);
+                            }).catch(() => {
+                                const frontMesh = new THREE.Mesh(sharedFrontGeo, fallbackFrontMat);
+                                frontMesh.position.z = 0.111;
+                                frontMesh.name = 'front';
+                                dummyGroup.add(frontMesh);
+                            });
+                    }
                     
                     // Attach to avatar (floating slightly in front and tilted up)
                     dummyGroup.position.set(0, 1.2, -0.6); 
@@ -1832,9 +1932,13 @@
                         const dummyGroup = p.mesh.children.find(c => c.name === "held_item_" + itemId);
                         if (dummyGroup) {
                             const frontMesh = dummyGroup.children.find(c => c.name === 'front');
-                            if (frontMesh && frontMesh.material) {
+                            if (frontMesh && frontMesh.userData && frontMesh.userData.isDynamicFront && frontMesh.material) {
                                 if (frontMesh.material.map) frontMesh.material.map.dispose();
                                 frontMesh.material.dispose();
+                            }
+                            const backMesh = dummyGroup.children.find(c => c.name === 'back');
+                            if (backMesh && backMesh.userData && backMesh.userData.isDynamicSleeve && backMesh.material) {
+                                backMesh.material.dispose();
                             }
                             p.mesh.remove(dummyGroup);
                         }
@@ -2065,7 +2169,7 @@
                                 const backTex = createBackCoverTexture(item, palette);
                                 const spineTex = createSpineTexture(item, palette);
 
-                                const backPlane = inspectedMesh.children.find(c => c.name === 'back');
+                                const backPlane = inspectedMesh.getObjectByName('back');
                                 if (backPlane) {
                                     backPlane.material = backPlane.material.clone();
                                     backPlane.material.map = backTex;
@@ -2073,17 +2177,32 @@
                                     backPlane.material.needsUpdate = true;
                                 }
 
-                                const spinePlane = inspectedMesh.children.find(c => c.name === 'spine');
+                                const spinePlane = inspectedMesh.getObjectByName('spine');
                                 if (spinePlane) {
                                     spinePlane.material = spinePlane.material.clone();
                                     spinePlane.material.map = spineTex;
                                     spinePlane.material.color.setHex(0xffffff);
                                     spinePlane.material.needsUpdate = true;
                                 }
+
+                                const rightSpinePlane = inspectedMesh.getObjectByName('right_spine');
+                                if (rightSpinePlane) {
+                                    rightSpinePlane.material = rightSpinePlane.material.clone();
+                                    rightSpinePlane.material.color.set(palette.bg);
+                                    rightSpinePlane.material.needsUpdate = true;
+                                }
+
+                                const topPlane = inspectedMesh.getObjectByName('top');
+                                if (topPlane) {
+                                    topPlane.material = topPlane.material.clone();
+                                    topPlane.material.color.set(palette.bg);
+                                    topPlane.material.needsUpdate = true;
+                                }
+
                                 inspectedMesh.userData.hasBackCover = true;
                             }
 
-                            const frontPlane = inspectedMesh.children.find(c => c.name === 'front');
+                            const frontPlane = inspectedMesh.getObjectByName('front');
 
                             // Temporarily change roughness to matte to prevent glare from washing out the HD cover
                             if (frontPlane) {
@@ -2115,7 +2234,7 @@
                                         highResTex.colorSpace = THREE.SRGBColorSpace;
                                         highResTex.needsUpdate = true;
 
-                                        const cFront = currentMesh.children.find(c => c.name === 'front');
+                                        const cFront = currentMesh.getObjectByName('front');
                                         if (cFront) {
                                             cFront.material.map = highResTex;
                                             cFront.material.needsUpdate = true;
@@ -2132,7 +2251,7 @@
 
                             // If it already loaded from a previous inspect, swap it instantly!
                             if (currentMesh.userData.highResMap) {
-                                const cFront = currentMesh.children.find(c => c.name === 'front');
+                                const cFront = currentMesh.getObjectByName('front');
                                 if (cFront) {
                                     cFront.material.map = currentMesh.userData.highResMap;
                                     cFront.material.needsUpdate = true;
@@ -2155,6 +2274,8 @@
                             // Align rotation perfectly with camera
                             inspectedMesh.position.copy(targetWorldPos);
                             inspectedMesh.quaternion.copy(camera.quaternion);
+                            const vg = inspectedMesh.getObjectByName('visualGroup');
+                            if (vg) vg.position.set(0, 0, 0);
 
                             targetSpin = 0;
                             currentSpin = 0;
@@ -2178,7 +2299,7 @@
 
                     currentState = STATE.BROWSE;
 
-                    const frontPlane = inspectedMesh.children.find(c => c.name === 'front');
+                    const frontPlane = inspectedMesh.getObjectByName('front');
                     if (frontPlane) {
                         // Dispose of the high-res texture to free GPU memory!
                         if (inspectedMesh.userData.highResMap) {
@@ -2189,8 +2310,8 @@
                         if (inspectedMesh.userData.lowResMap) {
                             frontPlane.material.map = inspectedMesh.userData.lowResMap;
                         }
-                        // Restore glossy plastic look for the shelf
-                        frontPlane.material.roughness = 0.2;
+                        // Restore cardboard look for the shelf
+                        frontPlane.material.roughness = 0.8;
                         frontPlane.material.needsUpdate = true;
                     }
 
@@ -2318,33 +2439,7 @@
                     if (lastIntersection) {
                         let hit = lastIntersection.object;
 
-                        if (hit.userData && hit.userData.isShelf && hit.userData.movieGroups) {
-                            // Convert raycast point to shelf's local coordinates
-                            const point = lastIntersection.point.clone(); 
-                            
-                            // Convert to the HITBOX'S local space!
-                            hit.worldToLocal(point);
-                            
-                            // Find the closest movie group to that X coordinate mathematically!
-                            let closestMovie = null;
-                            let minDist = Infinity;
-                            
-                            // Iterate only through the movies on THIS specific shelf
-                            for(let group of hit.userData.movieGroups) {
-                                // Block interaction if someone else is holding it (Phase 2)
-                                if (networkHeldItems.has(group.userData.id)) continue;
-
-                                const dist = Math.abs(point.x - group.position.x);
-                                if (dist < minDist && dist < 0.8) {
-                                    minDist = dist;
-                                    closestMovie = group;
-                                }
-                            }
-                            
-                            if (closestMovie) {
-                                hit = closestMovie; 
-                            }
-                        }
+                        if (hit.userData && hit.userData.parentGroup) { hit = hit.userData.parentGroup; }
 
                         if (hit.userData && hit.userData.parentGroup) hit = hit.userData.parentGroup;
 
@@ -2356,16 +2451,21 @@
                         if (hoveredMesh !== hit) {
                             // Reset previous hovered mesh
                             if (hoveredMesh) {
-                                if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
-                                else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
+                                if (hoveredMesh.userData.isCase) {
+                                    const vg = hoveredMesh.getObjectByName('visualGroup');
+                                    if (vg) vg.position.set(0, 0, 0);
+                                } else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
                                 else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.3;
                             }
 
                             // Set new hovered mesh
                             hoveredMesh = hit;
                             if (hoveredMesh.userData.isCase) {
-                                hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
-                                hoveredMesh.translateZ(0.2); // Pops out locally from gondola
+                                const vg = hoveredMesh.getObjectByName('visualGroup');
+                                if (vg) {
+                                    vg.position.set(0, 0, 0);
+                                    vg.translateZ(0.2); // Pops out locally from gondola
+                                }
                                 document.body.style.cursor = 'pointer';
                             }
                             else if (hoveredMesh.userData.isNode) {
@@ -2381,7 +2481,10 @@
                             }
                         }
                     } else if (hoveredMesh !== null) {
-                        if (hoveredMesh.userData.isCase) hoveredMesh.position.copy(hoveredMesh.userData.originalPos);
+                        if (hoveredMesh.userData.isCase) {
+                            const vg = hoveredMesh.getObjectByName('visualGroup');
+                            if (vg) vg.position.set(0, 0, 0);
+                        }
                         else if (hoveredMesh.userData.isNode) hoveredMesh.material.opacity = 0.4;
                         else if (hoveredMesh.userData.isExit) hoveredMesh.material.opacity = 0.3;
                         hoveredMesh = null;

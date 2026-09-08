@@ -1,4 +1,4 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
 
 export interface PlayOptions {
     /** The aspect ratio of the player */

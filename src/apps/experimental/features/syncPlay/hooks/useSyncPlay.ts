@@ -1,4 +1,4 @@
-import type { GroupInfoDto } from '@jellyfin/sdk/lib/generated-client/models/group-info-dto';
+import type { GroupInfoDto } from '@jellyfin/sdk/lib/generated-client';
 import type { ApiClient } from 'jellyfin-apiclient';
 import { useCallback, useEffect, useState } from 'react';
 

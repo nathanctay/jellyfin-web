@@ -1,7 +1,7 @@
-import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
-import { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
+import { ItemFields } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
+import { SortOrder } from '@jellyfin/sdk/lib/generated-client';
 import * as userSettings from 'scripts/settings/userSettings';
 import layoutManager from 'components/layoutManager';
 import { EpisodeFilter, FeatureFilters, LibraryViewSettings, ParentId, VideoBasicFilter, ViewMode } from '../types/library';

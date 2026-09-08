@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import type { VirtualFolderInfo } from '@jellyfin/sdk/lib/generated-client/models/virtual-folder-info';
+import type { VirtualFolderInfo } from '@jellyfin/sdk/lib/generated-client';
 import BaseCard from 'apps/dashboard/components/BaseCard';
 import getCollectionTypeOptions from '../utils/collectionTypeOptions';
 import globalize from 'lib/globalize';
@@ -25,7 +25,7 @@ import ConfirmDialog from 'components/ConfirmDialog';
 import { useRemoveVirtualFolder } from '../api/useRemoveVirtualFolder';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import { useApi } from 'hooks/useApi';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import dom from 'utils/dom';
 
 type LibraryCardProps = {

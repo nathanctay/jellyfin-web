@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { ActivityLogEntry } from '@jellyfin/sdk/lib/generated-client/models/activity-log-entry';
+import type { ActivityLogEntry } from '@jellyfin/sdk/lib/generated-client';
 import Notifications from '@mui/icons-material/Notifications';
 import Avatar from '@mui/material/Avatar';
 import ListItem from '@mui/material/ListItem';
@@ -10,7 +10,7 @@ import formatRelative from 'date-fns/formatRelative';
 import { getLocale } from 'utils/dateFnsLocale';
 import Stack from '@mui/material/Stack';
 import getLogLevelColor from '../utils/getLogLevelColor';
-import { LogLevel } from '@jellyfin/sdk/lib/generated-client/models/log-level';
+import { LogLevel } from '@jellyfin/sdk/lib/generated-client';
 import ListItemLink from 'components/ListItemLink';
 
 type ActivityListItemProps = {

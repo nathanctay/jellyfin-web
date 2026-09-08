@@ -18,8 +18,8 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import { getConfigurationApi } from '@jellyfin/sdk/lib/utils/api/configuration-api';
-import { TrickplayScanBehavior } from '@jellyfin/sdk/lib/generated-client/models/trickplay-scan-behavior';
-import { ProcessPriorityClass } from '@jellyfin/sdk/lib/generated-client/models/process-priority-class';
+import { TrickplayScanBehavior } from '@jellyfin/sdk/lib/generated-client';
+import { ProcessPriorityClass } from '@jellyfin/sdk/lib/generated-client';
 import { ActionData } from 'types/actionData';
 import { queryClient } from 'utils/query/queryClient';
 

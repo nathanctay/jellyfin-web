@@ -8,7 +8,7 @@ import Page from 'components/Page';
 import { QUERY_KEY, useNamedConfiguration } from 'hooks/useNamedConfiguration';
 import globalize from 'lib/globalize';
 import { ActionFunctionArgs, Form, useActionData, useNavigation, useSubmit } from 'react-router-dom';
-import type { LiveTvOptions } from '@jellyfin/sdk/lib/generated-client/models/live-tv-options';
+import type { LiveTvOptions } from '@jellyfin/sdk/lib/generated-client';
 import Loading from 'components/loading/LoadingComponent';
 import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';

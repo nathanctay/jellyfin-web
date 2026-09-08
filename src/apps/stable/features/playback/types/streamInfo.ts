@@ -1,7 +1,7 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client/models/media-source-info';
-import type { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
-import type { PlayMethod } from '@jellyfin/sdk/lib/generated-client/models/play-method';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaType } from '@jellyfin/sdk/lib/generated-client';
+import type { PlayMethod } from '@jellyfin/sdk/lib/generated-client';
 
 export interface StreamInfo {
     ended?: boolean

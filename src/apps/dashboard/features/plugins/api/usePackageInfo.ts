@@ -8,7 +8,7 @@ import { useApi } from 'hooks/useApi';
 
 import { QueryKey } from './queryKey';
 import { queryClient } from 'utils/query/queryClient';
-import type { PackageInfo } from '@jellyfin/sdk/lib/generated-client/models/package-info';
+import type { PackageInfo } from '@jellyfin/sdk/lib/generated-client';
 
 const fetchPackageInfo = async (
     api: Api,

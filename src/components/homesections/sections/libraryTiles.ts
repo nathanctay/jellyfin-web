@@ -1,4 +1,4 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
 
 import cardBuilder from 'components/cardbuilder/cardBuilder';
 import { getBackdropShape } from 'components/cardbuilder/utils/shape';

@@ -1,4 +1,4 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
 
 import { LibraryTab } from 'types/libraryTab';
 import type { LibraryTabContent } from 'types/libraryTabContent';

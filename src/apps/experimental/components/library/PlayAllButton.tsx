@@ -8,7 +8,7 @@ import { getFiltersQuery } from 'utils/items';
 import { LibraryViewSettings } from 'types/library';
 import { LibraryTab } from 'types/libraryTab';
 import type { ItemDto } from 'types/base/models/item-dto';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 
 interface PlayAllButtonProps {
     item: ItemDto | undefined

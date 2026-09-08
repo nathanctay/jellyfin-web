@@ -1,4 +1,4 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
 
 import confirm from 'components/confirm/confirm';
 import globalize from 'lib/globalize';

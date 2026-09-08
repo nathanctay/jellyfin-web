@@ -1,5 +1,5 @@
 import { Api } from '@jellyfin/sdk';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 
 import { ItemDto } from 'types/base/models/item-dto';

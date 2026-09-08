@@ -11,7 +11,7 @@ import Loading from 'components/loading/LoadingComponent';
 import Alert from '@mui/material/Alert';
 import List from '@mui/material/List';
 import RepositoryListItem from 'apps/dashboard/features/plugins/components/RepositoryListItem';
-import type { RepositoryInfo } from '@jellyfin/sdk/lib/generated-client/models/repository-info';
+import type { RepositoryInfo } from '@jellyfin/sdk/lib/generated-client';
 import { useSetRepositories } from 'apps/dashboard/features/plugins/api/useSetRepositories';
 import NewRepositoryForm from 'apps/dashboard/features/plugins/components/NewRepositoryForm';
 

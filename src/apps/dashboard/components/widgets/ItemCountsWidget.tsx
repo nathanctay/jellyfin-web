@@ -1,4 +1,4 @@
-import type { ItemCounts } from '@jellyfin/sdk/lib/generated-client/models/item-counts';
+import type { ItemCounts } from '@jellyfin/sdk/lib/generated-client';
 import Book from '@mui/icons-material/Book';
 import Movie from '@mui/icons-material/Movie';
 import MusicNote from '@mui/icons-material/MusicNote';

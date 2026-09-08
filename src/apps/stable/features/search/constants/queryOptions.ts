@@ -1,4 +1,4 @@
-import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
+import { ItemFields } from '@jellyfin/sdk/lib/generated-client';
 
 export const QUERY_OPTIONS = {
     limit: 100,

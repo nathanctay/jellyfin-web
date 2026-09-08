@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import globalize from 'lib/globalize';
 import Widget from './Widget';
-import type { TaskInfo } from '@jellyfin/sdk/lib/generated-client/models/task-info';
+import type { TaskInfo } from '@jellyfin/sdk/lib/generated-client';
 import Paper from '@mui/material/Paper';
-import { TaskState } from '@jellyfin/sdk/lib/generated-client/models/task-state';
+import { TaskState } from '@jellyfin/sdk/lib/generated-client';
 import Typography from '@mui/material/Typography';
 import TaskProgress from 'apps/dashboard/features/tasks/components/TaskProgress';
 import Box from '@mui/material/Box';

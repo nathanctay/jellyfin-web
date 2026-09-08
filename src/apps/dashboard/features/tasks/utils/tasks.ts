@@ -1,4 +1,4 @@
-import type { TaskInfo } from '@jellyfin/sdk/lib/generated-client/models/task-info';
+import type { TaskInfo } from '@jellyfin/sdk/lib/generated-client';
 
 export function getCategories(tasks: TaskInfo[] | undefined) {
     if (!tasks) return [];

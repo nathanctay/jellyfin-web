@@ -1,4 +1,4 @@
-import type { SessionInfo } from '@jellyfin/sdk/lib/generated-client/models/session-info';
+import type { SessionInfoDto as SessionInfo } from '@jellyfin/sdk/lib/generated-client';
 import playmethodhelper from 'components/playback/playmethodhelper';
 import globalize from 'lib/globalize';
 

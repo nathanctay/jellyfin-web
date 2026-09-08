@@ -1,4 +1,4 @@
-import type { BrandingOptions } from '@jellyfin/sdk/lib/generated-client/models/branding-options';
+import type { BrandingOptionsDto as BrandingOptions } from '@jellyfin/sdk/lib/generated-client';
 import { getConfigurationApi } from '@jellyfin/sdk/lib/utils/api/configuration-api';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import Delete from '@mui/icons-material/Delete';

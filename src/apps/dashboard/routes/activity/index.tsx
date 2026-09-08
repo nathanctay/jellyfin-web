@@ -1,7 +1,7 @@
 import parseISO from 'date-fns/parseISO';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { LogLevel } from '@jellyfin/sdk/lib/generated-client/models/log-level';
-import { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
+import { LogLevel } from '@jellyfin/sdk/lib/generated-client';
+import { SortOrder } from '@jellyfin/sdk/lib/generated-client';
 import { useTheme } from '@mui/material/styles';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -16,8 +16,8 @@ import UserAvatarButton from 'apps/dashboard/components/UserAvatarButton';
 import type { ActivityLogEntryCell } from 'apps/dashboard/features/activity/types/ActivityLogEntryCell';
 import { type UsersRecords, useUsersDetails } from 'hooks/useUsers';
 import globalize from 'lib/globalize';
-import type { ActivityLogEntry } from '@jellyfin/sdk/lib/generated-client/models/activity-log-entry';
-import { ActivityLogSortBy } from '@jellyfin/sdk/lib/generated-client/models/activity-log-sort-by';
+import type { ActivityLogEntry } from '@jellyfin/sdk/lib/generated-client';
+import { ActivityLogSortBy } from '@jellyfin/sdk/lib/generated-client';
 import { toBoolean } from 'utils/string';
 import { useSearchParams } from 'react-router-dom';
 

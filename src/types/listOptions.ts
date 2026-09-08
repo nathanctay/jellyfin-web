@@ -1,5 +1,5 @@
-import type { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
-import type { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import type { CollectionType } from '@jellyfin/sdk/lib/generated-client';
+import type { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
 
 import type { TextLineOpts } from 'components/common/textLines/types';
 import { ItemAction } from 'constants/itemAction';

@@ -1,5 +1,5 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 import dom from 'utils/dom';
 

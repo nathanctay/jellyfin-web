@@ -1,4 +1,4 @@
-import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client/models/media-segment-dto';
+import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client';
 
 const isBeforeSegment = (segment: MediaSegmentDto, time: number, direction: number) => {
     if (direction === -1) {

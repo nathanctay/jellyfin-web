@@ -4,7 +4,7 @@ import globalize from 'lib/globalize';
 import Loading from 'components/loading/LoadingComponent';
 import SearchResultsRow from './SearchResultsRow';
 import { CardShape } from 'components/cardbuilder/utils/shape';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 import { Section } from '../types';
 import { Link } from 'react-router-dom';
 

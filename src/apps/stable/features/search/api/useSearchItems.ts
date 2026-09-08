@@ -1,6 +1,6 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 import { useQuery } from '@tanstack/react-query';
 import { CardShape } from 'components/cardbuilder/utils/shape';
 import { useApi } from '../../../../../hooks/useApi';

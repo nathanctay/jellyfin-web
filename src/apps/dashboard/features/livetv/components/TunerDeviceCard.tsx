@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import type { TunerHostInfo } from '@jellyfin/sdk/lib/generated-client/models/tuner-host-info';
+import type { TunerHostInfo } from '@jellyfin/sdk/lib/generated-client';
 import BaseCard from 'apps/dashboard/components/BaseCard';
 import DvrIcon from '@mui/icons-material/Dvr';
 import getTunerName from '../utils/getTunerName';

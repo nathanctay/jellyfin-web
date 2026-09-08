@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import type { RepositoryInfo } from '@jellyfin/sdk/lib/generated-client/models/repository-info';
+import type { RepositoryInfo } from '@jellyfin/sdk/lib/generated-client';
 import ListItem from '@mui/material/ListItem';
 import Tooltip from '@mui/material/Tooltip';
 import Delete from '@mui/icons-material/Delete';

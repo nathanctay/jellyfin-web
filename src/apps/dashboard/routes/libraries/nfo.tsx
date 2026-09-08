@@ -21,7 +21,7 @@ import React, { useCallback, useState } from 'react';
 import { type ActionFunctionArgs, Form, useActionData, useNavigation } from 'react-router-dom';
 import { ActionData } from 'types/actionData';
 import { queryClient } from 'utils/query/queryClient';
-import type { XbmcMetadataOptions } from '@jellyfin/sdk/lib/generated-client/models/xbmc-metadata-options';
+import type { XbmcMetadataOptions } from '@jellyfin/sdk/lib/generated-client';
 
 const CONFIG_KEY = 'xbmcmetadata';
 

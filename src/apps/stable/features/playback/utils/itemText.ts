@@ -1,4 +1,4 @@
-import { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
+import { MediaType } from '@jellyfin/sdk/lib/generated-client';
 
 import type { ItemDto } from 'types/base/models/item-dto';
 

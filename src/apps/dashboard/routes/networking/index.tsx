@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import { ActionFunctionArgs, Form, useActionData, useNavigation } from 'react-router-dom';
 import { useNamedConfiguration } from 'hooks/useNamedConfiguration';
-import type { NetworkConfiguration } from '@jellyfin/sdk/lib/generated-client/models/network-configuration';
+import type { NetworkConfiguration } from '@jellyfin/sdk/lib/generated-client';
 import TextField from '@mui/material/TextField/TextField';
 import Loading from 'components/loading/LoadingComponent';
 import Alert from '@mui/material/Alert';

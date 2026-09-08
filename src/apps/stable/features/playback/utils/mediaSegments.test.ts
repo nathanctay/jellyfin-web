@@ -1,5 +1,5 @@
-import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client/models/media-segment-dto';
-import { MediaSegmentType } from '@jellyfin/sdk/lib/generated-client/models/media-segment-type';
+import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client';
+import { MediaSegmentType } from '@jellyfin/sdk/lib/generated-client';
 import { describe, expect, it } from 'vitest';
 
 import { findCurrentSegment } from './mediaSegments';

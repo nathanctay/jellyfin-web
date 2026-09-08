@@ -1,5 +1,5 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
 import { getItemsApi } from '@jellyfin/sdk/lib/utils/api/items-api';
 import { getPlaylistsApi } from '@jellyfin/sdk/lib/utils/api/playlists-api';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';

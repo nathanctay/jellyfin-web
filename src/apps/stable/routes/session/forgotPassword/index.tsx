@@ -1,4 +1,4 @@
-import { ForgotPasswordAction } from '@jellyfin/sdk/lib/generated-client/models/forgot-password-action';
+import { ForgotPasswordAction } from '@jellyfin/sdk/lib/generated-client';
 import { useMutation } from '@tanstack/react-query';
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';

@@ -1,7 +1,7 @@
-import type { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import type { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
 import Box from '@mui/material/Box';
 import ButtonGroup from '@mui/material/ButtonGroup';
 import Chip from '@mui/material/Chip';

@@ -1,6 +1,6 @@
 import type { Api } from '@jellyfin/sdk/lib/api';
-import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client/models/media-segment-dto';
-import { MediaSegmentType } from '@jellyfin/sdk/lib/generated-client/models/media-segment-type';
+import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client';
+import { MediaSegmentType } from '@jellyfin/sdk/lib/generated-client';
 import { getMediaSegmentsApi } from '@jellyfin/sdk/lib/utils/api/media-segments-api';
 
 import type { PlaybackManager } from 'components/playback/playbackmanager';

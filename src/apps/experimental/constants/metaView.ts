@@ -1,4 +1,4 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
 
 /**
  * Views in the web app that we treat as UserViews.

@@ -1,6 +1,6 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client/models/media-segment-dto';
-import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client/models/media-source-info';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaSegmentDto } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client';
 import type { ManagedPlayerStopInfo, MovedItem, PlayerError, PlayerErrorCode, PlayerStopInfo, RemovedItems } from 'apps/stable/features/playback/types/callbacks';
 import type { PlaybackManager } from 'components/playback/playbackmanager';
 import type { MediaError } from 'types/mediaError';

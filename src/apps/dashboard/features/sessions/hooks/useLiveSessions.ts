@@ -1,4 +1,4 @@
-import type { SessionInfoDto } from '@jellyfin/sdk/lib/generated-client/models/session-info-dto';
+import type { SessionInfoDto } from '@jellyfin/sdk/lib/generated-client';
 import { useApi } from 'hooks/useApi';
 import { useCallback, useEffect } from 'react';
 import { QUERY_KEY, useSessions } from '../api/useSessions';

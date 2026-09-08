@@ -11,8 +11,8 @@ import Loading from 'components/loading/LoadingComponent';
 import Alert from '@mui/material/Alert';
 import List from '@mui/material/List';
 import CreateBackupForm from 'apps/dashboard/features/backups/components/CreateBackupForm';
-import type { BackupOptionsDto } from '@jellyfin/sdk/lib/generated-client/models/backup-options-dto';
-import type { BackupManifestDto } from '@jellyfin/sdk/lib/generated-client/models/backup-manifest-dto';
+import type { BackupOptionsDto } from '@jellyfin/sdk/lib/generated-client';
+import type { BackupManifestDto } from '@jellyfin/sdk/lib/generated-client';
 import { useCreateBackup } from 'apps/dashboard/features/backups/api/useCreateBackup';
 import BackupProgressDialog from 'apps/dashboard/features/backups/components/BackupProgressDialog';
 import Backup from 'apps/dashboard/features/backups/components/Backup';
@@ -23,7 +23,7 @@ import RestoreProgressDialog from 'apps/dashboard/features/backups/components/Re
 import { useApi } from 'hooks/useApi';
 import { getSystemApi } from '@jellyfin/sdk/lib/utils/api/system-api';
 import useLiveTasks from 'apps/dashboard/features/tasks/hooks/useLiveTasks';
-import { TaskState } from '@jellyfin/sdk/lib/generated-client/models/task-state';
+import { TaskState } from '@jellyfin/sdk/lib/generated-client';
 import ConfirmDialog from 'components/ConfirmDialog';
 
 export const Component = () => {

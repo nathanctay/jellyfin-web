@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import type { RepositoryInfo } from '@jellyfin/sdk/lib/generated-client/models/repository-info';
+import type { RepositoryInfo } from '@jellyfin/sdk/lib/generated-client';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import globalize from 'lib/globalize';

@@ -1,5 +1,5 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
 import type { ApiClient } from 'jellyfin-apiclient';
 
 import type { CardOptions } from 'types/cardOptions';

@@ -1,6 +1,6 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown';
 import Favorite from '@mui/icons-material/Favorite';
 import Button from '@mui/material/Button/Button';

@@ -1,4 +1,4 @@
-import { MediaSegmentType } from '@jellyfin/sdk/lib/generated-client/models/media-segment-type';
+import { MediaSegmentType } from '@jellyfin/sdk/lib/generated-client';
 
 import { UserSettings } from 'scripts/settings/userSettings';
 

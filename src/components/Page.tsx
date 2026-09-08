@@ -1,5 +1,5 @@
 import classNames from 'classnames';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
 import React, { type FC, type PropsWithChildren, type HTMLAttributes, useEffect, useRef, StrictMode } from 'react';
 
 import autoFocuser from 'components/autoFocuser';

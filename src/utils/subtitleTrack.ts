@@ -1,4 +1,4 @@
-import type { MediaStream } from '@jellyfin/sdk/lib/generated-client/models/media-stream';
+import type { MediaStream } from '@jellyfin/sdk/lib/generated-client';
 
 type SubtitleTrack = Pick<MediaStream, 'LocalizedLanguage' | 'Title' | 'DisplayTitle' | 'Language'>;
 

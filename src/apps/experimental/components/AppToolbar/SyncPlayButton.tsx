@@ -1,4 +1,4 @@
-import { SyncPlayUserAccessType } from '@jellyfin/sdk/lib/generated-client/models/sync-play-user-access-type';
+import { SyncPlayUserAccessType } from '@jellyfin/sdk/lib/generated-client';
 import Badge from '@mui/material/Badge';
 import Groups from '@mui/icons-material/Groups';
 import IconButton from '@mui/material/IconButton';

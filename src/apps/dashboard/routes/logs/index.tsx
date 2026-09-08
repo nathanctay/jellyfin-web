@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 import { type ActionFunctionArgs, Form, useActionData, useNavigation } from 'react-router-dom';
 import { useServerLogs } from 'apps/dashboard/features/logs/api/useServerLogs';
 import { useConfiguration } from 'hooks/useConfiguration';
-import type { ServerConfiguration } from '@jellyfin/sdk/lib/generated-client/models/server-configuration';
+import type { ServerConfiguration } from '@jellyfin/sdk/lib/generated-client';
 import { ActionData } from 'types/actionData';
 import LogItemList from 'apps/dashboard/features/logs/components/LogItemList';
 

@@ -1,4 +1,4 @@
-import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
+import type { UserDto } from '@jellyfin/sdk/lib/generated-client';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router-dom';
 

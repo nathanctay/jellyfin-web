@@ -1,5 +1,5 @@
-import type { PluginInfo } from '@jellyfin/sdk/lib/generated-client/models/plugin-info';
-import { PluginStatus } from '@jellyfin/sdk/lib/generated-client/models/plugin-status';
+import type { PluginInfo } from '@jellyfin/sdk/lib/generated-client';
+import { PluginStatus } from '@jellyfin/sdk/lib/generated-client';
 
 /**
  * HACK: The Plugins API is returning garbage data in some cases,

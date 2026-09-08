@@ -1,4 +1,4 @@
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 
 import type { LibraryTabContent } from 'types/libraryTabContent';
 

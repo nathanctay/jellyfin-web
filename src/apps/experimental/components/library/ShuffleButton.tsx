@@ -1,4 +1,4 @@
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
 import React, { FC, useCallback } from 'react';
 import Shuffle from '@mui/icons-material/Shuffle';
 import Button from '@mui/material/Button';
@@ -9,7 +9,7 @@ import { getFiltersQuery } from 'utils/items';
 import { LibraryViewSettings } from 'types/library';
 import { LibraryTab } from 'types/libraryTab';
 import type { ItemDto } from 'types/base/models/item-dto';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 
 interface ShuffleButtonProps {
     item: ItemDto | undefined

@@ -1,5 +1,5 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { ItemFields } from '@jellyfin/sdk/lib/generated-client';
 import type { ApiClient } from 'jellyfin-apiclient';
 
 import { getRecordingsQuery } from 'apps/stable/features/liveTv/api/useRecordings';

@@ -1,4 +1,4 @@
-import type { SessionInfo } from '@jellyfin/sdk/lib/generated-client/models/session-info';
+import type { SessionInfoDto as SessionInfo } from '@jellyfin/sdk/lib/generated-client';
 import datetime from 'scripts/datetime';
 
 const getSessionNowPlayingTime = (session: SessionInfo) => {

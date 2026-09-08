@@ -1,4 +1,4 @@
-import type { GroupInfoDto } from '@jellyfin/sdk/lib/generated-client/models/group-info-dto';
+import type { GroupInfoDto } from '@jellyfin/sdk/lib/generated-client';
 import type { SvgIconComponent } from '@mui/icons-material';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import Box from '@mui/material/Box';

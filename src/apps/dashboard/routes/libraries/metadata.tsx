@@ -1,4 +1,4 @@
-import { ImageResolution } from '@jellyfin/sdk/lib/generated-client/models/image-resolution';
+import { ImageResolution } from '@jellyfin/sdk/lib/generated-client';
 import { getConfigurationApi } from '@jellyfin/sdk/lib/utils/api/configuration-api';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';

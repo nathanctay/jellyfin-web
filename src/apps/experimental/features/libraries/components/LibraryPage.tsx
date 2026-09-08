@@ -1,5 +1,5 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 import React, { type FC } from 'react';
 
 import PageTabContent from 'apps/experimental/components/library/PageTabContent';

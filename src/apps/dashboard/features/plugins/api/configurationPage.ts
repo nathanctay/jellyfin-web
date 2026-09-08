@@ -1,4 +1,4 @@
-import type { ConfigurationPageInfo } from '@jellyfin/sdk/lib/generated-client/models/configuration-page-info';
+import type { ConfigurationPageInfo } from '@jellyfin/sdk/lib/generated-client';
 
 export const findBestConfigurationPage = (
     configurationPages: ConfigurationPageInfo[],

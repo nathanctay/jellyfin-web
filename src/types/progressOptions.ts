@@ -1,4 +1,4 @@
-import type { UserItemDataDto } from '@jellyfin/sdk/lib/generated-client/models/user-item-data-dto';
+import type { UserItemDataDto } from '@jellyfin/sdk/lib/generated-client';
 
 export interface ProgressOptions {
     containerClass: string,

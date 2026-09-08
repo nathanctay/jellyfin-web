@@ -1,5 +1,5 @@
-import type { LibraryUpdateInfo } from '@jellyfin/sdk/lib/generated-client/models/library-update-info';
-import { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
+import type { LibraryUpdateInfo } from '@jellyfin/sdk/lib/generated-client';
+import { MediaType } from '@jellyfin/sdk/lib/generated-client';
 import { OutboundWebSocketMessageType } from '@jellyfin/sdk/lib/websocket';
 import React, { type FC, type PropsWithChildren, useCallback, useEffect, useRef } from 'react';
 import classNames from 'classnames';

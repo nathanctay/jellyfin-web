@@ -1,4 +1,4 @@
-import type { DeviceInfoDto } from '@jellyfin/sdk/lib/generated-client/models/device-info-dto';
+import type { DeviceInfoDto } from '@jellyfin/sdk/lib/generated-client';
 import Delete from '@mui/icons-material/Delete';
 import Edit from '@mui/icons-material/Edit';
 import Box from '@mui/material/Box/Box';

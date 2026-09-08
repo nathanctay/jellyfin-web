@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import type { ListingsProviderInfo } from '@jellyfin/sdk/lib/generated-client/models/listings-provider-info';
+import type { ListingsProviderInfo } from '@jellyfin/sdk/lib/generated-client';
 import Avatar from '@mui/material/Avatar';
 import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';

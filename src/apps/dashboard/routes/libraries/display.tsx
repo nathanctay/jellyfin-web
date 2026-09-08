@@ -20,7 +20,7 @@ import { ServerConnections } from 'lib/jellyfin-apiclient';
 import { type ActionFunctionArgs, Form, useActionData, useNavigation } from 'react-router-dom';
 import { ActionData } from 'types/actionData';
 import { queryClient } from 'utils/query/queryClient';
-import type { MetadataConfiguration } from '@jellyfin/sdk/lib/generated-client/models/metadata-configuration';
+import type { MetadataConfiguration } from '@jellyfin/sdk/lib/generated-client';
 
 const CONFIG_KEY = 'metadata';
 

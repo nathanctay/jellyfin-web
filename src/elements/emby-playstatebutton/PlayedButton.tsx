@@ -1,4 +1,4 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { type FC, useCallback } from 'react';
 import IconButton from '@mui/material/IconButton';

@@ -1,5 +1,5 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import type { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaType } from '@jellyfin/sdk/lib/generated-client';
 
 import { PluginType } from 'constants/pluginType';
 

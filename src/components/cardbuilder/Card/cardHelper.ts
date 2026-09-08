@@ -1,7 +1,7 @@
 import { Api } from '@jellyfin/sdk';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
-import type { BaseItemPerson } from '@jellyfin/sdk/lib/generated-client/models/base-item-person';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemPerson } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 
 import { appRouter } from 'components/router/appRouter';

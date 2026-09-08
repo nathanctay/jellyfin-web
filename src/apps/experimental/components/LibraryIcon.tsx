@@ -1,5 +1,5 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 import Favorite from '@mui/icons-material/Favorite';
 import Movie from '@mui/icons-material/Movie';
 import MusicNote from '@mui/icons-material/MusicNote';

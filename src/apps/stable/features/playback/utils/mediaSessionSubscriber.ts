@@ -1,4 +1,4 @@
-import { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
+import { MediaType } from '@jellyfin/sdk/lib/generated-client';
 
 import { getImageUrl } from 'apps/stable/features/playback/utils/image';
 import { getItemTextLines } from 'apps/stable/features/playback/utils/itemText';

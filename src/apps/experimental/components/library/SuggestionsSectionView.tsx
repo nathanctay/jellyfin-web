@@ -1,5 +1,5 @@
-import type { RecommendationDto } from '@jellyfin/sdk/lib/generated-client/models/recommendation-dto';
-import { RecommendationType } from '@jellyfin/sdk/lib/generated-client/models/recommendation-type';
+import type { RecommendationDto } from '@jellyfin/sdk/lib/generated-client';
+import { RecommendationType } from '@jellyfin/sdk/lib/generated-client';
 import React, { type FC } from 'react';
 
 import { CardShape } from 'components/cardbuilder/utils/shape';

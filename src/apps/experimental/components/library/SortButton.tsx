@@ -1,5 +1,5 @@
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
-import { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
+import { SortOrder } from '@jellyfin/sdk/lib/generated-client';
 import React, { FC, useCallback } from 'react';
 import ArrowDownward from '@mui/icons-material/ArrowDownward';
 import ArrowUpward from '@mui/icons-material/ArrowUpward';

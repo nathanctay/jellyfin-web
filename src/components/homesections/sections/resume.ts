@@ -1,7 +1,7 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
-import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
-import type { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client';
+import { ItemFields } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaType } from '@jellyfin/sdk/lib/generated-client';
 import type { ApiClient } from 'jellyfin-apiclient';
 
 import { getResumeItemsQuery } from 'apps/stable/features/libraries/api/useResumeItems';

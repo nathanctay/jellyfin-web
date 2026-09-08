@@ -1,4 +1,4 @@
-import type { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import type { CollectionType } from '@jellyfin/sdk/lib/generated-client';
 import React, { type FC } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebounceValue } from 'usehooks-ts';

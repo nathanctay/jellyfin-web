@@ -1,4 +1,4 @@
-import type { BackupOptionsDto } from '@jellyfin/sdk/lib/generated-client/models/backup-options-dto';
+import type { BackupOptionsDto } from '@jellyfin/sdk/lib/generated-client';
 import { getBackupApi } from '@jellyfin/sdk/lib/utils/api/backup-api';
 import { useMutation } from '@tanstack/react-query';
 

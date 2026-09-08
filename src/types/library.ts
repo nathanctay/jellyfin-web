@@ -1,9 +1,9 @@
-import type { ItemFilter } from '@jellyfin/sdk/lib/generated-client/models/item-filter';
-import type { VideoType } from '@jellyfin/sdk/lib/generated-client/models/video-type';
-import type { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
-import type { SeriesStatus } from '@jellyfin/sdk/lib/generated-client/models/series-status';
+import type { ItemFilter } from '@jellyfin/sdk/lib/generated-client';
+import type { VideoType } from '@jellyfin/sdk/lib/generated-client';
+import type { SortOrder } from '@jellyfin/sdk/lib/generated-client';
+import type { SeriesStatus } from '@jellyfin/sdk/lib/generated-client';
 import type { ImageType } from '@jellyfin/sdk/lib/generated-client';
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
 
 export type ParentId = string | null | undefined;
 
