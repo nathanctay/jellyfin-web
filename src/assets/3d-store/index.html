@@ -382,7 +382,27 @@
 
             const sharedFrontGeo = new THREE.PlaneGeometry(0.89, 1.59);
             const sharedBackGeo = new THREE.PlaneGeometry(0.89, 1.59);
-            const sharedSpineGeo = new THREE.PlaneGeometry(0.21, 1.59);
+            const spineShape = new THREE.Shape();
+            const sh_hw = 0.21 / 2;
+            const sh_hh = 1.59 / 2;
+            const notchDepth = 0.105;
+            
+            spineShape.moveTo(-sh_hw, sh_hh);
+            spineShape.lineTo(sh_hw, sh_hh);
+            spineShape.lineTo(sh_hw, -sh_hh);
+            // Draw the thumb notch curve at the bottom
+            spineShape.quadraticCurveTo(0, -sh_hh + notchDepth, -sh_hw, -sh_hh);
+            spineShape.lineTo(-sh_hw, sh_hh);
+            
+            const sharedSpineGeo = new THREE.ShapeGeometry(spineShape);
+            const pos = sharedSpineGeo.attributes.position;
+            const uvs = sharedSpineGeo.attributes.uv;
+            for (let i = 0; i < pos.count; i++) {
+                const u = (pos.getX(i) + sh_hw) / (2 * sh_hw);
+                const v = (pos.getY(i) + sh_hh) / (2 * sh_hh);
+                uvs.setXY(i, u, v);
+            }
+            uvs.needsUpdate = true;
             const sharedTopGeo = new THREE.PlaneGeometry(0.89, 0.21);
 
             // Floor
@@ -1262,7 +1282,7 @@
                                 const sleeveMat = defaultSpineMat;
 
                                 const caseGroup = new THREE.Group();
-                                caseGroup.position.set(0, 3.4, 0); // Sit on top of pedestal
+                                caseGroup.position.set(0, 3.305, 0); // Sit on top of pedestal
                                 caseGroup.rotation.x = -0.2; // Lean it back slightly
                                 const pedRNG = mulberry32(todaySeed + hashStr(movie.Id));
                                 caseGroup.rotation.y = (pedRNG() - 0.5) * 0.4; // Slightly organic rotation
@@ -1618,7 +1638,7 @@
                             const caseGroup = new THREE.Group();
 
                             const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
-                            caseGroup.position.set(xPos, shelfHeight, side * 0.8);
+                            caseGroup.position.set(xPos, shelfHeight + 0.095, side * 0.8);
                             if (side === -1) {
                                 caseGroup.rotation.y = Math.PI;
                                 caseGroup.rotation.x = 0.1;
