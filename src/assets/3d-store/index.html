@@ -691,7 +691,7 @@
                     await textureSemaphore.acquire();
 
                     try {
-                        const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=256&quality=80`;
+                        const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=128&quality=70`;
                         const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
                         if (!imgRes.ok) return null;
                         const blob = await imgRes.blob();
@@ -732,7 +732,6 @@
 
         function startBackgroundSpineProcessing() {
                 backgroundSpineQueue = Array.from(movieMeshMap.values());
-            backgroundSpineQueue = Array.from(movieMeshMap.values());
             if (!isProcessingSpines) {
                 isProcessingSpines = true;
                 processNextSpine();
@@ -804,7 +803,7 @@
                             spinePlane.material.needsUpdate = true;
                         }
                     }
-                    // caseGroup.userData.hasShelfColors = true; 
+
                     caseGroup.userData.palette = palette; // Save it for click() to use!
                 }
             }
@@ -849,14 +848,20 @@
                 let manifest = null;
                 
                 try {
-                    const mRes = await fetch('https://nathanbuster-production.up.railway.app/manifest');
-                    const mData = await mRes.json();
+                    const manifestPromise = fetch('https://nathanbuster-production.up.railway.app/manifest')
+                        .then(r => r.json())
+                        .catch(e => {
+                            window.logDebug("Manifest Fetch Error: " + e.message);
+                            console.warn("Failed to fetch manifest", e);
+                            return null;
+                        });
+                    const giveUp = new Promise(res => setTimeout(() => res(null), 2500));
+                    const mData = await Promise.race([manifestPromise, giveUp]);
                     if (mData && mData.seed === todaySeed && mData.lists) {
                         manifest = mData;
                     }
                 } catch(e) {
-                    window.logDebug("Manifest Fetch Error: " + e.message);
-                    console.warn("Failed to fetch manifest", e);
+                    window.logDebug("Manifest Race Error: " + e.message);
                 }
 
                 const STORE_CACHE_VERSION = 3; // bump whenever layout/seed logic changes
@@ -874,13 +879,14 @@
                     console.log("[MANIFEST] Adopted server manifest!");
                     const byId = new Map();
                     const flat = manifest.lists.flat();
-                    for (let i = 0; i < flat.length; i += 150) {
-                        const chunk = flat.slice(i, i + 150);
+                    const chunks = [];
+                    for (let i = 0; i < flat.length; i += 150) chunks.push(flat.slice(i, i + 150));
+                    await Promise.all(chunks.map(async (chunk) => {
                         const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?Ids=${chunk.join(',')}&Fields=${fields}&Limit=150`,
                             { headers: { 'X-Emby-Token': jfToken } });
                         const json = await res.json();
                         extractItems(json).forEach(it => byId.set(it.Id, it));
-                    }
+                    }));
                     lists = manifest.lists.map(ids => ids.map(id => byId.get(id)).filter(Boolean));
                     sessionStorage.setItem(cacheKey, JSON.stringify(lists)); // Cache the hydrated manifest
                 } else if (cachedData) {
@@ -1149,6 +1155,7 @@
 
                                 const ud = { item: movie, bitmap: bmp, id: instanceId, title: movie.Name, isCase: true, originalPos: caseGroup.position.clone(), originalRot: caseGroup.rotation.clone() };
                                 caseGroup.userData = ud;
+                                if (isProcessingSpines) backgroundSpineQueue.push(caseGroup);
 
                             const visualGroup = new THREE.Group();
                             visualGroup.name = 'visualGroup';
@@ -1321,8 +1328,15 @@
                 buildFloorDisplays(allMovies);
                 // buildCheckoutCounter();
                 
-                // Start lazy loading shelf colors/spines in the background
-                setTimeout(startBackgroundSpineProcessing, 1000); // 1s delay so browser breathes
+                // Start lazy loading shelf colors/spines in the background only after front textures finish
+                const pollTextureQueue = () => {
+                    if (textureSemaphore.current === 0 && textureSemaphore.queue.length === 0) {
+                        startBackgroundSpineProcessing();
+                    } else {
+                        setTimeout(pollTextureQueue, 500);
+                    }
+                };
+                setTimeout(pollTextureQueue, 500);
             } catch (e) {
                 window.logDebug("loadData Error: " + e.message + "\n" + e.stack);
                 console.error("Failed to load store data", e);
@@ -1749,6 +1763,15 @@
                 group.add(sprite);
 
                 scene.add(group);
+                
+                group.userData.dispose = () => {
+                    [tvGeo, screenGeo, staticGeo, antGeo].forEach(g => g.dispose());
+                    [tvMat, screenMat, staticMat, antMat, spriteMat].forEach(m => {
+                        if (m.map) m.map.dispose();
+                        m.dispose();
+                    });
+                };
+                
                 return group;
             }
 
@@ -1792,21 +1815,8 @@
                     });
                     networkHeldItems.clear();
                     networkedPlayers.forEach(p => {
-                        // Dispose dummy case materials
-                        const dummyGroups = p.mesh.children.filter(c => c.name && c.name.startsWith("held_item_"));
-                        dummyGroups.forEach(dummyGroup => {
-                            const frontMesh = dummyGroup.children.find(c => c.name === 'front');
-                            if (frontMesh && frontMesh.userData && frontMesh.userData.isDynamicFront && frontMesh.material) {
-                                if (frontMesh.material.map) frontMesh.material.map.dispose();
-                                frontMesh.material.dispose();
-                            }
-                            dummyGroup.children.forEach(child => {
-                                if (child.material && child.material.userData && child.material.userData.isDynamicSleeve) {
-                                    if (child.material.map) child.material.map.dispose();
-                                    child.material.dispose();
-                                }
-                            });
-                        });
+                        p.mesh.children.filter(c => c.name?.startsWith('held_item_')).forEach(disposeDummyGroup);
+                        p.mesh.userData.dispose?.();
                         scene.remove(p.mesh);
                     });
                     networkedPlayers.clear();
@@ -1816,6 +1826,20 @@
                         wsRetryDelay = Math.min(wsRetryDelay * 2, 15000);
                     }
                 };
+
+                function disposeDummyGroup(dummyGroup) {
+                    const frontMesh = dummyGroup.children.find(c => c.name === 'front');
+                    if (frontMesh?.userData?.isDynamicFront && frontMesh.material) {
+                        frontMesh.material.map?.dispose();
+                        frontMesh.material.dispose();
+                    }
+                    dummyGroup.children.forEach(child => {
+                        if (child.material?.userData?.isDynamicSleeve) {
+                            child.material.map?.dispose();
+                            child.material.dispose();
+                        }
+                    });
+                }
 
                 function applyInspect(playerId, itemId) {
                     const p = networkedPlayers.get(playerId);
@@ -2004,17 +2028,7 @@
                     if (p) {
                         const dummyGroup = p.mesh.children.find(c => c.name === "held_item_" + itemId);
                         if (dummyGroup) {
-                            const frontMesh = dummyGroup.children.find(c => c.name === 'front');
-                            if (frontMesh && frontMesh.userData && frontMesh.userData.isDynamicFront && frontMesh.material) {
-                                if (frontMesh.material.map) frontMesh.material.map.dispose();
-                                frontMesh.material.dispose();
-                            }
-                            dummyGroup.children.forEach(child => {
-                                if (child.material && child.material.userData && child.material.userData.isDynamicSleeve) {
-                                    if (child.material.map) child.material.map.dispose();
-                                    child.material.dispose();
-                                }
-                            });
+                            disposeDummyGroup(dummyGroup);
                             p.mesh.remove(dummyGroup);
                         }
                     }
@@ -2073,8 +2087,9 @@
                     else if (data.type === 'USER_LEFT') {
                         const p = networkedPlayers.get(data.payload.id);
                         if (p) {
+                            p.mesh.children.filter(c => c.name?.startsWith('held_item_')).forEach(disposeDummyGroup);
+                            p.mesh.userData.dispose?.();
                             scene.remove(p.mesh);
-                            // DO NOT dispose geometries here, they are shared!
                             networkedPlayers.delete(data.payload.id);
                         }
                     }
