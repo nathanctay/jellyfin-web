@@ -720,32 +720,35 @@
                 return tex;
             }
 
-            function createSpineTexture(item, palette) {
+            function createSpineTexture(item, palette, scaleDown = false) {
                 const canvas = document.createElement('canvas');
-                canvas.width = 64; // Aspect ratio 0.10 to 1.5 is 1:15 (64x960)
-                canvas.height = 960;
+                const scale = scaleDown ? 0.5 : 1.0;
+                const w = 64; const h = 960;
+                canvas.width = w * scale; 
+                canvas.height = h * scale;
                 const ctx = canvas.getContext('2d');
+                ctx.scale(scale, scale);
 
                 if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
 
                 // Background
                 ctx.fillStyle = palette.bg;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, w, h);
 
                 // Sticker at Top
                 ctx.fillStyle = '#f5c518'; // Yellow
-                ctx.fillRect(0, 0, canvas.width, 100);
+                ctx.fillRect(0, 0, w, 100);
 
                 // Sticker Text (Rotated slightly or stacked)
                 ctx.fillStyle = '#111111';
                 ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('SHELF', canvas.width / 2, 40);
-                ctx.fillText('COPY', canvas.width / 2, 60);
+                ctx.fillText('SHELF', w / 2, 40);
+                ctx.fillText('COPY', w / 2, 60);
 
                 // Spine Title (Rotated 90 degrees)
                 ctx.save();
-                ctx.translate(canvas.width / 2, 160); // Start below the sticker
+                ctx.translate(w / 2, 160); // Start below the sticker
                 ctx.rotate(Math.PI / 2); // Rotate 90 degrees clockwise
 
                 ctx.fillStyle = palette.text;
@@ -847,6 +850,91 @@
 
             // Start loading data in the background without blocking the render loop
             loadData().catch(e => console.error(e));
+        
+        let backgroundSpineQueue = [];
+        let isProcessingSpines = false;
+
+        function startBackgroundSpineProcessing() {
+            backgroundSpineQueue = Array.from(movieMeshMap.values());
+            if (!isProcessingSpines) {
+                isProcessingSpines = true;
+                processNextSpine();
+            }
+        }
+
+        function processNextSpine() {
+            if (backgroundSpineQueue.length === 0) {
+                isProcessingSpines = false;
+                return;
+            }
+
+            const caseGroup = backgroundSpineQueue.shift();
+            
+            if (caseGroup && caseGroup.userData && !caseGroup.userData.hasBackCover && !caseGroup.userData.hasShelfColors) {
+                const item = caseGroup.userData.item;
+                const bitmap = caseGroup.userData.bitmap;
+                if (bitmap) {
+                    const tinyCanvas = document.createElement('canvas');
+                    tinyCanvas.width = 16;
+                    tinyCanvas.height = 16;
+                    const tinyCtx = tinyCanvas.getContext('2d');
+                    tinyCtx.drawImage(bitmap, 0, 0, 16, 16);
+                    const pixels = tinyCtx.getImageData(0, 0, 16, 16).data;
+
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; count++;
+                    }
+
+                    const avgR = Math.floor(r / count);
+                    const avgG = Math.floor(g / count);
+                    const avgB = Math.floor(b / count);
+                    const bgColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
+
+                    const luminance = 0.2126 * (avgR/255) + 0.7152 * (avgG/255) + 0.0722 * (avgB/255);
+                    const isLight = luminance > 0.45;
+
+                    const palette = {
+                        bg: bgColor,
+                        text: isLight ? '#111111' : '#ffffff',
+                        subtext: isLight ? '#333333' : '#cccccc',
+                        divider: isLight ? '#999999' : '#333333'
+                    };
+
+                    const vg = caseGroup.getObjectByName('visualGroup');
+                    if (vg) {
+                        const rightSpinePlane = vg.getObjectByName('right_spine');
+                        if (rightSpinePlane) {
+                            rightSpinePlane.material = rightSpinePlane.material.clone();
+                            rightSpinePlane.material.color.set(palette.bg);
+                            rightSpinePlane.material.needsUpdate = true;
+                        }
+
+                        const topPlane = vg.getObjectByName('top');
+                        if (topPlane) {
+                            topPlane.material = topPlane.material.clone();
+                            topPlane.material.color.set(palette.bg);
+                            topPlane.material.needsUpdate = true;
+                        }
+
+                        // The spine faces out, so generate a low-res spine texture for it
+                        const spinePlane = vg.getObjectByName('spine');
+                        if (spinePlane) {
+                            const spineTex = createSpineTexture(item, palette, true); // true = half scale!
+                            spinePlane.material = spinePlane.material.clone();
+                            spinePlane.material.map = spineTex;
+                            spinePlane.material.color.setHex(0xffffff);
+                            spinePlane.material.needsUpdate = true;
+                        }
+                    }
+                    caseGroup.userData.hasShelfColors = true; 
+                    caseGroup.userData.palette = palette; // Save it for click() to use!
+                }
+            }
+
+            requestAnimationFrame(processNextSpine);
+        }
+
         async function loadData() {
             try {
                 const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
@@ -921,34 +1009,32 @@
                 } else if (cachedData) {
                     lists = JSON.parse(cachedData);
                 } else {
-                    const catPromises = categories.map(async (cat, i) => {
-                        // Create a UNIQUE deterministic PRNG for this specific category index
-                        // This prevents race conditions in network requests from changing the random sequence
+                    const allMoviesUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Fields=${fields}&Limit=5000&SortBy=SortName`;
+                    const res = await fetch(allMoviesUrl, { headers: { 'X-Emby-Token': jfToken } });
+                    const data = await res.json();
+                    const allItems = extractItems(data);
+
+                    lists = categories.map((cat, i) => {
                         const catRNG = mulberry32(todaySeed + i);
                         
-                        const genreParam = cat.genre ? `&Genres=${cat.genre}` : '';
-                        const sortParam = cat.sortOrder ? `&SortBy=${cat.sort}&SortOrder=${cat.sortOrder}` : `&SortBy=${cat.sort}`;
+                        let filtered = cat.genre 
+                            ? allItems.filter(m => m.Genres && m.Genres.includes(cat.genre)) 
+                            : [...allItems];
+                            
+                        if (filtered.length === 0) return [];
 
-                        const countUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=1&Fields=Id${genreParam}`;
-                        const countRes = await fetch(countUrl, { headers: { 'X-Emby-Token': jfToken } });
-                        const countData = await countRes.json();
-                        const total = countData.TotalRecordCount || 0;
+                        if (cat.name === 'Latest') {
+                            filtered.sort((a, b) => new Date(b.DateCreated || 0) - new Date(a.DateCreated || 0));
+                            return filtered.slice(0, 100);
+                        }
 
-                        if (total === 0) return [];
-
-                        const limit = Math.min(100, total);
-                        const maxStart = Math.max(0, total - limit);
+                        const limit = Math.min(100, filtered.length);
+                        const maxStart = Math.max(0, filtered.length - limit);
                         const startIndex = cat.randomizeWindow === false ? 0 : Math.floor(catRNG() * maxStart);
-
-                        const dataUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Limit=${limit}&StartIndex=${startIndex}${sortParam}&Fields=${fields}${genreParam}`;
-                        const res = await fetch(dataUrl, { headers: { 'X-Emby-Token': jfToken } });
-                        const data = await res.json();
-
-                        let items = extractItems(data);
-                        return shuffleArray(items, catRNG);
+                        const windowed = filtered.slice(startIndex, startIndex + limit);
+                        
+                        return shuffleArray(windowed, catRNG);
                     });
-
-                    lists = await Promise.all(catPromises);
                     sessionStorage.setItem(cacheKey, JSON.stringify(lists));
                     
                     // We need to send this to the server so it becomes the manifest!
@@ -1355,6 +1441,9 @@
                 buildWelcomeMat();
                 buildFloorDisplays(allMovies);
                 // buildCheckoutCounter();
+                
+                // Start lazy loading shelf colors/spines in the background
+                setTimeout(startBackgroundSpineProcessing, 1000); // 1s delay so browser breathes
             } catch (e) {
                 window.logDebug("loadData Error: " + e.message + "\n" + e.stack);
                 console.error("Failed to load store data", e);
@@ -1712,12 +1801,12 @@
                 const canvasStatic = document.createElement('canvas');
                 canvasStatic.width = 64; canvasStatic.height = 64;
                 const ctxS = canvasStatic.getContext('2d');
-                for(let i=0; i<64; i++) {
-                    for(let j=0; j<64; j++) {
-                        ctxS.fillStyle = Math.random() > 0.5 ? '#222' : '#555';
-                        ctxS.fillRect(i, j, 1, 1);
-                    }
+                const imgData = ctxS.createImageData(64, 64);
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    const c = Math.random() > 0.5 ? 34 : 85; 
+                    imgData.data[i] = c; imgData.data[i+1] = c; imgData.data[i+2] = c; imgData.data[i+3] = 255;
                 }
+                ctxS.putImageData(imgData, 0, 0);
                 const staticTex = new THREE.CanvasTexture(canvasStatic);
                 const staticGeo = new THREE.PlaneGeometry(1.2, 0.8);
                 const staticMat = new THREE.MeshBasicMaterial({ map: staticTex });
@@ -2152,10 +2241,10 @@
                             if (!inspectedMesh.userData.hasBackCover) {
                                 const item = inspectedMesh.userData.item;
                                 const bitmap = inspectedMesh.userData.bitmap;
-                                let palette = null;
+                                let palette = inspectedMesh.userData.palette;
 
-                                // Extract color ON DEMAND just for this one movie!
-                                if (bitmap) {
+                                if (!palette && bitmap) {
+                                    // Extract color ON DEMAND if background task hasn't reached it yet!
                                     const tinyCanvas = document.createElement('canvas');
                                     tinyCanvas.width = 16;
                                     tinyCanvas.height = 16;
@@ -2186,6 +2275,8 @@
 
                                 const backTex = createBackCoverTexture(item, palette);
                                 const spineTex = createSpineTexture(item, palette);
+                                inspectedMesh.userData.backTex = backTex;
+                                inspectedMesh.userData.spineTex = spineTex;
 
                                 const backPlane = inspectedMesh.getObjectByName('back');
                                 if (backPlane) {
@@ -2197,6 +2288,9 @@
 
                                 const spinePlane = inspectedMesh.getObjectByName('spine');
                                 if (spinePlane) {
+                                    if (!inspectedMesh.userData.shelfSpineTex) {
+                                        inspectedMesh.userData.shelfSpineTex = spinePlane.material.map;
+                                    }
                                     spinePlane.material = spinePlane.material.clone();
                                     spinePlane.material.map = spineTex;
                                     spinePlane.material.color.setHex(0xffffff);
@@ -2324,6 +2418,20 @@
                             inspectedMesh.userData.highResMap.dispose();
                             delete inspectedMesh.userData.highResMap;
                         }
+                        if (inspectedMesh.userData.backTex) {
+                            inspectedMesh.userData.backTex.dispose();
+                            delete inspectedMesh.userData.backTex;
+                            inspectedMesh.userData.hasBackCover = false; // Force regen next time
+                        }
+                        if (inspectedMesh.userData.spineTex) {
+                            inspectedMesh.userData.spineTex.dispose();
+                            delete inspectedMesh.userData.spineTex;
+                        }
+                        const spinePlane = inspectedMesh.getObjectByName('spine');
+                        if (spinePlane && inspectedMesh.userData.shelfSpineTex) {
+                            spinePlane.material.map = inspectedMesh.userData.shelfSpineTex;
+                            spinePlane.material.needsUpdate = true;
+                        }
 
                         if (inspectedMesh.userData.lowResMap) {
                             frontPlane.material.map = inspectedMesh.userData.lowResMap;
@@ -2426,16 +2534,21 @@
                 rafId = requestAnimationFrame(animate);
                 const dt = clock.getDelta();
 
+                const camLerp = 1 - Math.exp(-5.0 * dt);
+                
+                // Always lerp FOV to targetFov (so we reset if zoomed in and clicked)
+                if (Math.abs(targetFov - camera.fov) > 0.1) {
+                    camera.fov += (targetFov - camera.fov) * camLerp;
+                    camera.updateProjectionMatrix();
+                }
+
                 if (currentState === STATE.BROWSE) {
-                    currentCameraX += (targetCameraX - currentCameraX) * 0.1;
+                    currentCameraX += (targetCameraX - currentCameraX) * camLerp;
                     camera.position.x = currentCameraX;
-                    currentCameraZ += (targetCameraZ - currentCameraZ) * 0.1;
+                    currentCameraZ += (targetCameraZ - currentCameraZ) * camLerp;
                     camera.position.z = currentCameraZ;
 
-                    if (Math.abs(targetFov - camera.fov) > 0.1) {
-                        camera.fov += (targetFov - camera.fov) * 0.1;
-                        camera.updateProjectionMatrix();
-                    }
+                    
 
                     // Throttle raycasting to ~30 FPS to save CPU
                     if (time - lastRaycastTime > 33) {
@@ -2478,23 +2591,27 @@
 
                             // Set new hovered mesh
                             hoveredMesh = hit;
-                            if (hoveredMesh.userData.isCase) {
-                                const vg = hoveredMesh.getObjectByName('visualGroup');
-                                if (vg) {
-                                    vg.position.set(0, 0, 0);
-                                    vg.translateZ(0.2); // Pops out locally from gondola
+                            if (hoveredMesh) {
+                                if (hoveredMesh.userData.isCase) {
+                                    const vg = hoveredMesh.getObjectByName('visualGroup');
+                                    if (vg) {
+                                        vg.position.set(0, 0, 0);
+                                        vg.translateZ(0.2); // Pops out locally from gondola
+                                    }
+                                    document.body.style.cursor = 'pointer';
                                 }
-                                document.body.style.cursor = 'pointer';
-                            }
-                            else if (hoveredMesh.userData.isNode) {
-                                hoveredMesh.material.opacity = 0.9;
-                                document.body.style.cursor = 'pointer';
-                            }
-                            else if (hoveredMesh.userData.isExit) {
-                                hoveredMesh.material.opacity = 0.7;
-                                document.body.style.cursor = 'pointer';
-                            }
-                            else {
+                                else if (hoveredMesh.userData.isNode) {
+                                    hoveredMesh.material.opacity = 0.9;
+                                    document.body.style.cursor = 'pointer';
+                                }
+                                else if (hoveredMesh.userData.isExit) {
+                                    hoveredMesh.material.opacity = 0.7;
+                                    document.body.style.cursor = 'pointer';
+                                }
+                                else {
+                                    document.body.style.cursor = 'default';
+                                }
+                            } else {
                                 document.body.style.cursor = 'default';
                             }
                         }
@@ -2519,7 +2636,8 @@
                     inspectedMesh.position.copy(targetWorldPos);
 
                     // Smoothly interpolate rotation to target
-                    currentSpin += (targetSpin - currentSpin) * 0.1;
+                    const spinLerp = 1 - Math.exp(-10.0 * dt);
+                    currentSpin += (targetSpin - currentSpin) * spinLerp;
 
                     const baseQuat = new THREE.Quaternion().copy(camera.quaternion);
                     const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), currentSpin);
