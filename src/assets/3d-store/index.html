@@ -121,6 +121,8 @@
 
     <script type="module">
         import * as THREE from './vendor/three.module.min.js';
+        import { createBackCoverTexture, createSpineTexture } from './textures.js';
+        import { createRoundedPlane } from './geometry.js';
 
 
         // --- DEBUG HUD ---
@@ -174,7 +176,9 @@
         });
 
         // 2. Three.js Setup (Triggered after Auth)
-        let cleanup3D = () => {};
+        let cleanup3D = () => {
+                movieMeshMap.clear();
+                networkHeldItems.clear();};
 
         // HUD Elements
         const hud = document.getElementById('hud');
@@ -198,7 +202,10 @@
             return Math.abs(hash);
         }
 
+        let isInitialized = false;
         async function init3D() {
+            if (isInitialized) return;
+            isInitialized = true;
             
         const STORE_DESIGN = localStorage.getItem('storeDesign') || 'vhs';
         const STORE_MODE = localStorage.getItem('storeMode') || 'multiplayer';
@@ -417,6 +424,7 @@
             const halfWidth = cw / 2 + bevelSize;
             const halfHeight = ch / 2 + bevelSize;
             const halfDepth = cd / 2 + bevelThickness;
+            const sharedHitBoxGeo = new THREE.BoxGeometry(cw, ch, cd + 0.04);
             const gondolaYOffset = halfHeight - 0.70;
             const pedY = 2.51 + halfHeight;
             const caseShape = new THREE.Shape();
@@ -441,28 +449,7 @@
             });
             sharedCaseGeo.center();
 
-            const createRoundedPlane = (width, height, radius) => {
-                const shape = new THREE.Shape();
-                shape.moveTo(-width/2, -height/2 + radius);
-                shape.lineTo(-width/2, height/2 - radius);
-                shape.quadraticCurveTo(-width/2, height/2, -width/2 + radius, height/2);
-                shape.lineTo(width/2 - radius, height/2);
-                shape.quadraticCurveTo(width/2, height/2, width/2, height/2 - radius);
-                shape.lineTo(width/2, -height/2 + radius);
-                shape.quadraticCurveTo(width/2, -height/2, width/2 - radius, -height/2);
-                shape.lineTo(-width/2 + radius, -height/2);
-                shape.quadraticCurveTo(-width/2, -height/2, -width/2, -height/2 + radius);
-                
-                const geo = new THREE.ShapeGeometry(shape);
-                const pos = geo.attributes.position;
-                const uvs = geo.attributes.uv;
-                for (let i = 0; i < pos.count; i++) {
-                    const u = (pos.getX(i) + width/2) / width;
-                    const v = (pos.getY(i) + height/2) / height;
-                    uvs.setXY(i, u, v);
-                }
-                return geo;
-            };
+            
 
             const sharedFrontGeo = isDvd ? createRoundedPlane(cw, ch, 0.04) : new THREE.PlaneGeometry(cw, ch);
             const sharedBackGeo = isDvd ? createRoundedPlane(cw, ch, 0.04) : new THREE.PlaneGeometry(cw, ch);
@@ -658,230 +645,9 @@
             doorGroup.add(doorsHitBox);
             interactableMeshes.push(doorsHitBox);
 
-            // Polyfill for CanvasRenderingContext2D.roundRect
-            if (!CanvasRenderingContext2D.prototype.roundRect) {
-                CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-                    if (w < 2 * r) r = w / 2;
-                    if (h < 2 * r) r = h / 2;
-                    this.beginPath();
-                    this.moveTo(x + r, y);
-                    this.arcTo(x + w, y, x + w, y + h, r);
-                    this.arcTo(x + w, y + h, x, y + h, r);
-                    this.arcTo(x, y + h, x, y, r);
-                    this.arcTo(x, y, x + r, y, r);
-                    this.closePath();
-                    return this;
-                };
-            }
+            
 
-            function createBackCoverTexture(item, palette) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 768; // 1:1.5 ratio
-                const ctx = canvas.getContext('2d');
-
-                if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
-
-                // Base Background
-                ctx.fillStyle = palette.bg;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Blockbuster-style Top Header Bar
-                ctx.fillStyle = '#0000aa'; // Blue bar
-                ctx.fillRect(0, 0, canvas.width, 40);
-                ctx.fillStyle = '#ffcc00'; // Yellow text
-                ctx.font = 'bold 20px "Arial Black", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('GUARANTEED TO BE THERE', canvas.width / 2, 28);
-
-                // MPAA Rating Box (Top Right)
-                const rating = item.OfficialRating || 'NR';
-                ctx.font = 'bold 22px "Arial Black", sans-serif';
-                // Measure the text and pad it nicely
-                const ratingWidth = Math.max(52, ctx.measureText(rating).width + 20);
-                const boxRight = canvas.width - 30; // 30px margin from right
-                const boxLeft = boxRight - ratingWidth;
-
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(boxLeft - 4, 60, ratingWidth + 8, 45);
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(boxLeft, 64, ratingWidth, 37);
-
-                ctx.fillStyle = '#000000';
-                ctx.textAlign = 'center';
-                ctx.fillText(rating, boxLeft + ratingWidth / 2, 93);
-
-                // Title
-                ctx.fillStyle = palette.text;
-                ctx.font = 'bold 44px "Helvetica Neue", sans-serif';
-                ctx.textAlign = 'left';
-
-                function wrapText(context, text, x, y, maxWidth, lineHeight, maxLines = 10) {
-                    if (!text) return y;
-                    const words = text.split(' ');
-                    let line = '';
-                    let currentY = y;
-                    let lines = 0;
-
-                    for (let n = 0; n < words.length; n++) {
-                        const testLine = line + words[n] + ' ';
-                        const metrics = context.measureText(testLine);
-                        const testWidth = metrics.width;
-                        if (testWidth > maxWidth && n > 0) {
-                            context.fillText(line, x, currentY);
-                            line = words[n] + ' ';
-                            currentY += lineHeight;
-                            lines++;
-                            if (lines >= maxLines) {
-                                context.fillText('...', x, currentY);
-                                return currentY + lineHeight;
-                            }
-                        } else {
-                            line = testLine;
-                        }
-                    }
-                    context.fillText(line, x, currentY);
-                    return currentY + lineHeight;
-                }
-
-                let yPos = 100; // Below header
-                // Title wraps but avoids the rating box!
-                yPos = wrapText(ctx, item.Name || 'Unknown Title', 30, yPos, canvas.width - 120, 50, 3);
-
-                // Meta info
-                ctx.font = '22px "Helvetica Neue", sans-serif';
-                ctx.fillStyle = palette.subtext;
-                const year = item.ProductionYear || '----';
-                let runtime = '';
-                if (item.RunTimeTicks) {
-                    const mins = Math.floor(item.RunTimeTicks / 600000000);
-                    const h = Math.floor(mins / 60);
-                    const m = mins % 60;
-                    runtime = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                }
-                const genre = (item.Genres && item.Genres.length > 0) ? item.Genres[0] : '';
-                ctx.fillText(`${year}  ·  ${runtime}  ${genre ? '·  ' + genre : ''}`, 30, yPos + 10);
-                yPos += 50;
-
-                // Divider
-                ctx.strokeStyle = palette.divider;
-                ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(30, yPos); ctx.lineTo(canvas.width - 30, yPos); ctx.stroke();
-                yPos += 40;
-
-                // Synopsis Header
-                ctx.fillStyle = '#f5c518';
-                ctx.font = 'bold 16px "Helvetica Neue", sans-serif';
-                ctx.fillText('S Y N O P S I S', 30, yPos);
-                yPos += 40;
-
-                // Synopsis Body
-                ctx.fillStyle = palette.text;
-                ctx.font = '22px "Helvetica Neue", sans-serif';
-                yPos = wrapText(ctx, item.Overview || 'No synopsis available.', 30, yPos, canvas.width - 60, 32, 10);
-
-                // --- Bottom Graphics ---
-                const bottomY = canvas.height - 100;
-
-                // 1. Procedural UPC Barcode (Bottom Left)
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(30, bottomY, 140, 70);
-                ctx.fillStyle = '#000000';
-                let currentX = 40;
-                for(let i=0; i<30; i++) {
-                    const barW = Math.random() > 0.6 ? 4 : 2; // Random thin/thick bars
-                    if (currentX + barW > 160) break;
-                    ctx.fillRect(currentX, bottomY + 10, barW, 40);
-                    currentX += barW + (Math.random() * 3 + 1);
-                }
-                ctx.font = 'bold 12px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText('4  39120  48291  8', 100, bottomY + 65);
-
-                // 2. VHS / Hi-Fi Stereo Tech Logos (Bottom Center)
-                ctx.fillStyle = palette.subtext;
-                ctx.font = 'bold 18px "Arial", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('VHS', 230, bottomY + 30);
-                ctx.font = '12px "Arial", sans-serif';
-                ctx.fillText('Hi-Fi STEREO', 230, bottomY + 50);
-
-                // 3. Rental Sticker (Bottom Right)
-                ctx.fillStyle = '#111111';
-                ctx.roundRect(canvas.width - 200, bottomY, 170, 70, 10);
-                ctx.fill();
-                ctx.strokeStyle = '#f5c518';
-                ctx.lineWidth = 2;
-                ctx.roundRect(canvas.width - 195, bottomY + 5, 160, 60, 6);
-                ctx.stroke();
-
-                ctx.fillStyle = '#f5c518';
-                ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
-                ctx.fillText('RENTAL COPY', canvas.width - 115, bottomY + 38);
-                ctx.fillStyle = '#aaaaaa';
-                ctx.font = '12px "Helvetica Neue", sans-serif';
-                ctx.fillText('Please Rewind', canvas.width - 115, bottomY + 56);
-
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.colorSpace = THREE.SRGBColorSpace;
-                return tex;
-            }
-
-            function createSpineTexture(item, palette, scaleDown = false) {
-                const canvas = document.createElement('canvas');
-                const scale = scaleDown ? 0.5 : 1.0;
-                const w = 64; const h = 960;
-                canvas.width = w * scale; 
-                canvas.height = h * scale;
-                const ctx = canvas.getContext('2d');
-                ctx.scale(scale, scale);
-
-                if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
-
-                // Background
-                ctx.fillStyle = palette.bg;
-                ctx.fillRect(0, 0, w, h);
-
-                // Sticker at Top
-                if (STORE_DESIGN === 'vhs') {
-                    ctx.fillStyle = '#f5c518'; // Yellow
-                    ctx.fillRect(0, 0, w, 100);
-
-                    // Sticker Text (Rotated slightly or stacked)
-                    ctx.fillStyle = '#111111';
-                    ctx.font = 'bold 14px "Helvetica Neue", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('SHELF', w / 2, 40);
-                    ctx.fillText('COPY', w / 2, 60);
-                }
-
-                // Spine Title (Rotated 90 degrees)
-                ctx.save();
-                ctx.translate(w / 2, 160); // Start below the sticker
-                ctx.rotate(Math.PI / 2); // Rotate 90 degrees clockwise
-
-                ctx.fillStyle = palette.text;
-                ctx.font = 'bold 36px "Helvetica Neue", sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-
-                // Truncate if too long (roughly 750px width available when rotated)
-                let title = item.Name || 'Unknown Title';
-                if (ctx.measureText(title).width > 750) {
-                    while (ctx.measureText(title + '...').width > 750 && title.length > 0) {
-                        title = title.substring(0, title.length - 1);
-                    }
-                    title += '...';
-                }
-
-                ctx.fillText(title, 0, 0);
-                ctx.restore();
-
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.colorSpace = THREE.SRGBColorSpace;
-                return tex;
-            }
+            
 
             // Simple semaphore to limit concurrent operations
             class Semaphore {
@@ -965,6 +731,7 @@
         let isProcessingSpines = false;
 
         function startBackgroundSpineProcessing() {
+                backgroundSpineQueue = Array.from(movieMeshMap.values());
             backgroundSpineQueue = Array.from(movieMeshMap.values());
             if (!isProcessingSpines) {
                 isProcessingSpines = true;
@@ -980,7 +747,7 @@
 
             const caseGroup = backgroundSpineQueue.shift();
             
-            if (caseGroup && caseGroup.userData && !caseGroup.userData.hasBackCover && !caseGroup.userData.hasShelfColors) {
+            if (caseGroup && caseGroup.userData) {
                 const item = caseGroup.userData.item;
                 const bitmap = caseGroup.userData.bitmap;
                 if (bitmap) {
@@ -1014,14 +781,14 @@
                     const vg = caseGroup.getObjectByName('visualGroup');
                     if (vg) {
                         const rightSpinePlane = vg.getObjectByName('right_spine');
-                        if (rightSpinePlane) {
+                        if (rightSpinePlane && rightSpinePlane.material === defaultSpineMat) {
                             rightSpinePlane.material = rightSpinePlane.material.clone();
                             rightSpinePlane.material.color.set(palette.bg);
                             rightSpinePlane.material.needsUpdate = true;
                         }
 
                         const topPlane = vg.getObjectByName('top');
-                        if (topPlane) {
+                        if (topPlane && topPlane.material === defaultSpineMat) {
                             topPlane.material = topPlane.material.clone();
                             topPlane.material.color.set(palette.bg);
                             topPlane.material.needsUpdate = true;
@@ -1029,15 +796,15 @@
 
                         // The spine faces out, so generate a low-res spine texture for it
                         const spinePlane = vg.getObjectByName('spine');
-                        if (spinePlane) {
-                            const spineTex = createSpineTexture(item, palette, true); // true = half scale!
+                        if (spinePlane && spinePlane.material === defaultSpineMat) {
+                            const spineTex = createSpineTexture(item, palette, STORE_DESIGN, true); // true = half scale!
                             spinePlane.material = spinePlane.material.clone();
                             spinePlane.material.map = spineTex;
                             spinePlane.material.color.setHex(0xffffff);
                             spinePlane.material.needsUpdate = true;
                         }
                     }
-                    caseGroup.userData.hasShelfColors = true; 
+                    // caseGroup.userData.hasShelfColors = true; 
                     caseGroup.userData.palette = palette; // Save it for click() to use!
                 }
             }
@@ -1048,7 +815,7 @@
         async function loadData() {
             try {
                 const extractItems = (d) => Array.isArray(d) ? d : (d.Items || []);
-                const fields = 'Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres';
+                const fields = 'Overview,RunTimeTicks,ProductionYear,OfficialRating,Genres,DateCreated';
 
                 function shuffleArray(array, rngFunc) {
                     for (let i = array.length - 1; i > 0; i--) {
@@ -1092,7 +859,7 @@
                     console.warn("Failed to fetch manifest", e);
                 }
 
-                const STORE_CACHE_VERSION = 2; // bump whenever layout/seed logic changes
+                const STORE_CACHE_VERSION = 3; // bump whenever layout/seed logic changes
                 const cacheKey = `virtualStoreCache_v${STORE_CACHE_VERSION}_day${todaySeed}`;
 
                 // Purge stale entries from old days / old code versions
@@ -1388,13 +1155,13 @@
                             caseGroup.add(visualGroup);
                             
                             const hitBox = new THREE.Mesh(
-                                new THREE.BoxGeometry(cw, ch, cd + 0.04),
+                                sharedHitBoxGeo,
                                 new THREE.MeshBasicMaterial({ visible: false })
                             );
                             hitBox.position.set(0, 0, 0);
                             hitBox.userData = { parentGroup: caseGroup };
                             caseGroup.add(hitBox);
-                            interactableMeshes.push(caseGroup);
+                            interactableMeshes.push(hitBox);
 
                             const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
                             caseMesh.userData = { parentGroup: caseGroup };
@@ -1519,7 +1286,7 @@
                             .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
                             .then(bmp => {
                                 const tex = new THREE.CanvasTexture(bmp);
-                                tex.colorSpace = THREE.SRGBColorSpace;
+                            tex.colorSpace = THREE.SRGBColorSpace;
                                 tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
                                 poster.material.map = tex;
                                 poster.material.needsUpdate = true;
@@ -1752,13 +1519,13 @@
                             caseGroup.add(visualGroup);
                             
                             const hitBox = new THREE.Mesh(
-                                new THREE.BoxGeometry(cw, ch, cd + 0.04),
+                                sharedHitBoxGeo,
                                 new THREE.MeshBasicMaterial({ visible: false })
                             );
                             hitBox.position.set(0, 0, 0);
                             hitBox.userData = { parentGroup: caseGroup };
                             caseGroup.add(hitBox);
-                            interactableMeshes.push(caseGroup);
+                            interactableMeshes.push(hitBox);
 
                             const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
                             caseMesh.userData = { parentGroup: caseGroup };
@@ -1809,7 +1576,7 @@
                             const slotRNG = mulberry32(todaySeed + hashStr(item.Id));
                             if (STORE_DESIGN === 'vhs' && slotRNG() < 0.3) {
                                 const sticker = new THREE.Mesh(stickerGeo, stickerMat);
-                                sticker.position.set(0.2, -0.4, 0.052);
+                                sticker.position.set(0.2, -0.4, halfDepth + 0.002);
                                 sticker.rotation.z = (slotRNG() - 0.5) * 0.4;
                                 sticker.userData = { parentGroup: caseGroup };
                                 visualGroup.add(sticker);
@@ -1938,6 +1705,7 @@
                         .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
                         .then(bmp => {
                             const tex = new THREE.CanvasTexture(bmp);
+                            staticTex.dispose();
                             staticScreen.material.map = tex;
                             staticScreen.material.needsUpdate = true;
                         })
@@ -2087,9 +1855,31 @@
                         // Create high-res textures for the dummy if they don't exist yet!
                         const item = group.userData.item;
                         if (item) {
-                            const palette = group.userData.palette || { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
-                            const backTex = createBackCoverTexture(item, palette);
-                            const spineTex = createSpineTexture(item, palette);
+                            let palette = group.userData.palette;
+                            if (!palette && group.userData.bitmap) {
+                                const b = group.userData.bitmap;
+                                const tinyCanvas = document.createElement('canvas');
+                                tinyCanvas.width = 16; tinyCanvas.height = 16;
+                                const tinyCtx = tinyCanvas.getContext('2d', { willReadFrequently: true });
+                                tinyCtx.drawImage(b, 0, 0, 16, 16);
+                                const px = tinyCtx.getImageData(0, 0, 16, 16).data;
+                                let r = 0, g = 0, bl = 0, count = 0;
+                                for(let i=0; i<px.length; i+=4){ r+=px[i]; g+=px[i+1]; bl+=px[i+2]; count++; }
+                                const avgR = Math.floor(r/count);
+                                const avgG = Math.floor(g/count);
+                                const avgB = Math.floor(bl/count);
+                                const luminance = 0.2126 * (avgR/255) + 0.7152 * (avgG/255) + 0.0722 * (avgB/255);
+                                const isLight = luminance > 0.45;
+                                palette = {
+                                    bg: `rgb(${avgR}, ${avgG}, ${avgB})`,
+                                    text: isLight ? '#111111' : '#ffffff',
+                                    subtext: isLight ? '#333333' : '#cccccc',
+                                    divider: isLight ? '#999999' : '#333333'
+                                };
+                            }
+                            if (!palette) palette = { bg: '#1c1c1e', text: '#ffffff', subtext: '#cccccc', divider: '#333333' };
+                            const backTex = createBackCoverTexture(item, palette, STORE_DESIGN);
+                            const spineTex = createSpineTexture(item, palette, STORE_DESIGN);
                             sourceSleeveMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.5 });
                             sourceSleeveMat.userData.isDynamicSleeve = true; // Tag for cleanup
 
@@ -2148,11 +1938,17 @@
                             
                             // Calculate palette
                             const canvas = document.createElement('canvas');
-                            canvas.width = 1; canvas.height = 1;
+                            canvas.width = 16; canvas.height = 16;
                             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                            ctx.drawImage(bmp, 0, 0, 1, 1);
-                            const data = ctx.getImageData(0, 0, 1, 1).data;
-                            const avgR = data[0], avgG = data[1], avgB = data[2];
+                            ctx.drawImage(bmp, 0, 0, 16, 16);
+                            const data = ctx.getImageData(0, 0, 16, 16).data;
+                            let r = 0, g = 0, b = 0, count = 0;
+                            for (let i = 0; i < data.length; i += 4) {
+                                r += data[i]; g += data[i+1]; b += data[i+2]; count++;
+                            }
+                            const avgR = Math.floor(r / count);
+                            const avgG = Math.floor(g / count);
+                            const avgB = Math.floor(b / count);
                             const luminance = 0.2126 * (avgR/255) + 0.7152 * (avgG/255) + 0.0722 * (avgB/255);
                             const isLight = luminance > 0.45;
                             const palette = {
@@ -2163,8 +1959,8 @@
                             };
                             
                             // Generate high-res back/spine
-                            const backTex = createBackCoverTexture(fetchedItem, palette);
-                            const spineTex = createSpineTexture(fetchedItem, palette);
+                            const backTex = createBackCoverTexture(fetchedItem, palette, STORE_DESIGN);
+                            const spineTex = createSpineTexture(fetchedItem, palette, STORE_DESIGN);
                             
                             const dynamicBackMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.5 });
                             dynamicBackMat.userData.isDynamicSleeve = true;
@@ -2314,6 +2110,7 @@
             let currentSpin = 0;
 
             function onPointerDown(clientX, clientY) {
+                if (settingsOpen()) return;
                 isDragging = true;
                 dragDistance = 0;
                 previousMousePosition = { x: clientX, y: clientY };
@@ -2323,6 +2120,7 @@
             }
 
             function onPointerMove(clientX, clientY) {
+                if (settingsOpen()) return;
                 mouse.x = (clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
@@ -2358,6 +2156,7 @@
             window.addEventListener('mouseup', onPointerUp);
 
             window.addEventListener('wheel', (e) => {
+                if (settingsOpen()) return;
                 // Smooth trackpad zooming and mouse wheel zooming
                 targetFov = Math.max(20, Math.min(80, targetFov + e.deltaY * 0.02));
             }, { passive: true });
@@ -2366,7 +2165,9 @@
             window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
             window.addEventListener('touchend', onPointerUp);
 
+            const settingsOpen = () => document.getElementById('settings-modal').style.display === 'block';
             window.addEventListener('click', (e) => {
+                if (settingsOpen()) return;
                 if (currentState === STATE.BROWSE) {
                     if (dragDistance > 10) return; // It was a pan, not a click
 
@@ -2453,13 +2254,14 @@
                                     };
                                 }
 
-                                const backTex = createBackCoverTexture(item, palette);
-                                const spineTex = createSpineTexture(item, palette);
+                                const backTex = createBackCoverTexture(item, palette, STORE_DESIGN);
+                                const spineTex = createSpineTexture(item, palette, STORE_DESIGN);
                                 inspectedMesh.userData.backTex = backTex;
                                 inspectedMesh.userData.spineTex = spineTex;
 
                                 const backPlane = inspectedMesh.getObjectByName('back');
                                 if (backPlane) {
+                                    if (!inspectedMesh.userData.shelfBackMat) inspectedMesh.userData.shelfBackMat = backPlane.material;
                                     backPlane.material = backPlane.material.clone();
                                     backPlane.material.map = backTex;
                                     backPlane.material.color.setHex(0xffffff);
@@ -2468,9 +2270,7 @@
 
                                 const spinePlane = inspectedMesh.getObjectByName('spine');
                                 if (spinePlane) {
-                                    if (!inspectedMesh.userData.shelfSpineTex) {
-                                        inspectedMesh.userData.shelfSpineTex = spinePlane.material.map;
-                                    }
+                                    if (!inspectedMesh.userData.shelfSpineMat) inspectedMesh.userData.shelfSpineMat = spinePlane.material;
                                     spinePlane.material = spinePlane.material.clone();
                                     spinePlane.material.map = spineTex;
                                     spinePlane.material.color.setHex(0xffffff);
@@ -2479,6 +2279,7 @@
 
                                 const rightSpinePlane = inspectedMesh.getObjectByName('right_spine');
                                 if (rightSpinePlane) {
+                                    if (!inspectedMesh.userData.shelfRightSpineMat) inspectedMesh.userData.shelfRightSpineMat = rightSpinePlane.material;
                                     rightSpinePlane.material = rightSpinePlane.material.clone();
                                     rightSpinePlane.material.color.set(palette.bg);
                                     rightSpinePlane.material.needsUpdate = true;
@@ -2486,6 +2287,7 @@
 
                                 const topPlane = inspectedMesh.getObjectByName('top');
                                 if (topPlane) {
+                                    if (!inspectedMesh.userData.shelfTopMat) inspectedMesh.userData.shelfTopMat = topPlane.material;
                                     topPlane.material = topPlane.material.clone();
                                     topPlane.material.color.set(palette.bg);
                                     topPlane.material.needsUpdate = true;
@@ -2607,10 +2409,25 @@
                             inspectedMesh.userData.spineTex.dispose();
                             delete inspectedMesh.userData.spineTex;
                         }
+                        const backPlane = inspectedMesh.getObjectByName('back');
+                        if (backPlane && inspectedMesh.userData.shelfBackMat) {
+                            backPlane.material.dispose();
+                            backPlane.material = inspectedMesh.userData.shelfBackMat;
+                        }
                         const spinePlane = inspectedMesh.getObjectByName('spine');
-                        if (spinePlane && inspectedMesh.userData.shelfSpineTex) {
-                            spinePlane.material.map = inspectedMesh.userData.shelfSpineTex;
-                            spinePlane.material.needsUpdate = true;
+                        if (spinePlane && inspectedMesh.userData.shelfSpineMat) {
+                            spinePlane.material.dispose();
+                            spinePlane.material = inspectedMesh.userData.shelfSpineMat;
+                        }
+                        const rSpine = inspectedMesh.getObjectByName('right_spine');
+                        if (rSpine && inspectedMesh.userData.shelfRightSpineMat) {
+                            rSpine.material.dispose();
+                            rSpine.material = inspectedMesh.userData.shelfRightSpineMat;
+                        }
+                        const tPlane = inspectedMesh.getObjectByName('top');
+                        if (tPlane && inspectedMesh.userData.shelfTopMat) {
+                            tPlane.material.dispose();
+                            tPlane.material = inspectedMesh.userData.shelfTopMat;
                         }
 
                         if (inspectedMesh.userData.lowResMap) {
@@ -2752,8 +2569,6 @@
 
                         if (hit.userData && hit.userData.parentGroup) { hit = hit.userData.parentGroup; }
 
-                        if (hit.userData && hit.userData.parentGroup) hit = hit.userData.parentGroup;
-
                         // Raycaster ignores `visible`, so exclude held cases manually
                         if (hit && hit.userData && hit.userData.isCase && (networkHeldItems.has(hit.userData.id) || hit.visible === false)) {
                             hit = null;
@@ -2855,6 +2670,8 @@
             window.addEventListener('resize', onResize);
 
             cleanup3D = () => {
+                movieMeshMap.clear();
+                networkHeldItems.clear();
                 wsIntentionallyClosed = true;
                 if (ws) {
                     ws.onclose = null;
