@@ -242,6 +242,8 @@ JSON.stringify = function(obj, replacer, space) {
         let jfToken = null;
         let jfUserId = null;
         let jfServer = null;
+        let wsServer = '';
+        let myUsername = 'Guest';
 
         // Tell the parent we are ready to receive the auth token
         parent.postMessage({ type: 'READY' }, '*');
@@ -373,7 +375,7 @@ JSON.stringify = function(obj, replacer, space) {
 
         // Move network globals to the very top so they are accessible by loadData
         let ws = null;
-        let myUsername = "Guest_" + Math.floor(Math.random() * 1000); 
+         
         let networkHeldItems = new Set(); 
         const movieMeshMap = new Map();
 
@@ -1034,7 +1036,7 @@ JSON.stringify = function(obj, replacer, space) {
                 let manifest = null;
                 
                 try {
-                    const manifestPromise = fetch('https://nathanbuster-production.up.railway.app/manifest')
+                    const manifestPromise = fetch(wsServer.replace(/^ws/, 'http') + '/manifest')
                         .then(r => r.json())
                         .catch(e => {
                             window.logDebug("Manifest Fetch Error: " + e.message);
@@ -2050,7 +2052,7 @@ JSON.stringify = function(obj, replacer, space) {
             let wsIntentionallyClosed = false;
 
             function connectWS() {
-                    if (STORE_MODE === 'singleplayer') return;
+                    if (STORE_MODE === 'singleplayer' || !wsServer) return;
                 try {
                     // Connect to live Railway multiplayer server!
                     ws = new WebSocket(wsServer);
@@ -3134,7 +3136,7 @@ JSON.stringify = function(obj, replacer, space) {
                     if (lastIntersection) {
                         let hit = lastIntersection.object;
 
-                        while (hit && !hit.userData?.isCase && !hit.userData?.isCheckout && !hit.userData?.isDropBox && !hit.userData?.isNode) {
+                        while (hit && !hit.userData?.isCase && !hit.userData?.isCheckout && !hit.userData?.isDropBox && !hit.userData?.isNode && !hit.userData?.isExit) {
                             hit = hit.parent;
                         }
 
