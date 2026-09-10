@@ -1453,8 +1453,10 @@ JSON.stringify = function(obj, replacer, space) {
                         { x: 15,  z: 44.8, rotY: Math.PI },
                         { x: 25,  z: 44.8, rotY: Math.PI },
                         // Side Walls (By the front door)
-                        { x: -29.8, z: 27, rotY: Math.PI / 2 }, // Left Wall
-                        { x: 29.8,  z: 27, rotY: -Math.PI / 2 } // Right Wall
+                        { x: -29.8, z: 25, rotY: Math.PI / 2 }, // Left Wall 1
+                        { x: -29.8, z: 35, rotY: Math.PI / 2 }, // Left Wall 2
+                        { x: 29.8,  z: 25, rotY: -Math.PI / 2 }, // Right Wall 1
+                        { x: 29.8,  z: 35, rotY: -Math.PI / 2 }  // Right Wall 2
                     ];
 
                     // Deterministically pick 6 movies
