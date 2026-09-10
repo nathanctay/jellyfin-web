@@ -23,4 +23,5 @@ export declare global {
     const __USE_SYSTEM_FONTS__: boolean;
     const __WEBPACK_SERVE__: boolean;
     const __SERVER_URL__: string;
+    const __MULTIPLAYER_SERVER__: string;
 }

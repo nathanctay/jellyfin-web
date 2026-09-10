@@ -13,6 +13,59 @@
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
             touch-action: none;
         }
+        #basket-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background: rgba(75, 0, 130, 0.85); /* Transparent Purple */
+            border: 2px solid #FDDA0D; /* Yellow */
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            font-family: Arial, sans-serif;
+            width: 250px;
+            display: none; /* Shown only when items exist */
+            pointer-events: auto;
+        }
+        #basket-panel h3 {
+            margin: 0 0 10px 0;
+            color: #FDDA0D;
+            text-transform: uppercase;
+            font-size: 16px;
+            border-bottom: 1px solid #FDDA0D;
+            padding-bottom: 5px;
+        }
+        #basket-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .basket-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .basket-item-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 190px;
+        }
+        .basket-item-remove {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 2px 6px;
+        }
+        .basket-item-remove:hover {
+            background: #cc0000;
+        }
+
         #hud {
             position: absolute;
             bottom: 40px;
@@ -61,6 +114,34 @@
         }
         #hud-play:active {
             transform: scale(0.95);
+        }
+        #hud-basket {
+            display: inline-block;
+            margin-top: 15px;
+            margin-left: 10px;
+            padding: 10px 20px;
+            background: #FDDA0D; /* Blockbuster yellow */
+            color: #4b0082; /* Deep purple text */
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #ffffff;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+        }
+        #hud-basket:hover:hover {
+            background: #ffffff;
+            color: #4b0082;
+            border-color: #FDDA0D;
+        }
+        #hud-basket:disabled {
+            background: #888;
+            color: #ccc;
+            cursor: default;
+            box-shadow: none;
+            border-color: #555;
         }
         #loading-screen {
             position: absolute;
@@ -113,13 +194,32 @@
             <button id="setting-save" style="padding: 8px 16px; background: #00a4dc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Save & Reload</button>
         </div>
     </div>
+    <div id="basket-panel">
+        <h3>My Basket</h3>
+        <div id="basket-list"></div>
+    </div>
+    
     <div id="hud">
 
         <h2 id="hud-title">Title</h2>
         <button id="hud-play">Play</button>
+        <button id="hud-basket">Add to Basket</button>
+        <br>
+        
     </div>
 
     <script type="module">
+const originalStringify = JSON.stringify;
+JSON.stringify = function(obj, replacer, space) {
+    try {
+        return originalStringify(obj, replacer, space);
+    } catch(err) {
+        console.error("Stringify crash! Object:", obj);
+        console.error(new Error().stack);
+        return "{}";
+    }
+};
+
         import * as THREE from './vendor/three.module.min.js';
         import { createBackCoverTexture, createSpineTexture } from './textures.js';
         import { createRoundedPlane } from './geometry.js';
@@ -154,6 +254,7 @@
                 jfServer = event.data.payload.serverUrl;
                 jfUserId = event.data.payload.userId;
                 if (event.data.payload.username) myUsername = event.data.payload.username;
+                if (event.data.payload.multiplayerServer) wsServer = event.data.payload.multiplayerServer;
                 console.log("3D Store received AUTH. Token:", jfToken ? "Present" : "Missing", "Server:", jfServer, "User:", jfUserId, "Name:", myUsername);
                 init3D();
             } else if (event.data && event.data.type === 'SEERR_DATA') {
@@ -170,6 +271,103 @@
         const hud = document.getElementById('hud');
         const hudTitle = document.getElementById('hud-title');
         const hudPlay = document.getElementById('hud-play');
+        const hudBasket = document.getElementById('hud-basket');
+        
+        let storeBasket = JSON.parse(sessionStorage.getItem('storeBasket') || '[]');
+        
+        window.checkoutDisplays = [];
+        window.isCheckingOut = false;
+        
+        const basketPanel = document.getElementById('basket-panel');
+        const basketList = document.getElementById('basket-list');
+
+        function broadcastBasket() {
+            if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'UPDATE_BASKET',
+                    payload: { basket: storeBasket.map(b => b.Id) }
+                }));
+            }
+        }
+
+        function updateBasketUI() {
+            // Update 2D Panel
+            if (storeBasket.length > 0) {
+                basketPanel.style.display = 'block';
+                basketList.innerHTML = '';
+                storeBasket.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'basket-item';
+                    
+                    const span = document.createElement('span');
+                    span.className = 'basket-item-title';
+                    span.innerText = item.Name;
+                    
+                    const btn = document.createElement('button');
+                    btn.className = 'basket-item-remove';
+                    btn.innerText = 'X';
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        storeBasket.splice(index, 1);
+                        try {
+    sessionStorage.setItem('storeBasket', JSON.stringify(storeBasket));
+} catch(err) {
+    console.error("Stringify crash on storeBasket!", storeBasket);
+    throw err;
+}
+                        
+                        // Update HUD if currently inspecting
+                        if (typeof selectedItem !== 'undefined' && selectedItem && selectedItem.item) {
+                            const hudBasket = document.getElementById('hud-basket');
+                            if (hudBasket) {
+                                if (storeBasket.find(b => b.Id === selectedItem.item.Id)) {
+                                    hudBasket.innerText = "In Basket ✓";
+                                    hudBasket.disabled = true;
+                                } else {
+                                    hudBasket.innerText = "Add to Basket";
+                                    hudBasket.disabled = false;
+                                }
+                            }
+                        }
+                        
+                        updateBasketUI();
+                        broadcastBasket();
+                    };
+                    
+                    div.appendChild(span);
+                    div.appendChild(btn);
+                    basketList.appendChild(div);
+                });
+            } else {
+                basketPanel.style.display = 'none';
+                basketList.innerHTML = '';
+            }
+
+            // Update 3D CRT Displays
+            if (window.checkoutDisplays) {
+                for (let display of window.checkoutDisplays) {
+                    display.ctx.fillStyle = '#0000aa'; // DOS Blue
+                    display.ctx.fillRect(0,0,128,128);
+                    display.ctx.fillStyle = '#ffffff';
+                    display.ctx.font = '12px monospace';
+                    display.ctx.fillText('RENTAL SYSTEM', 10, 20);
+                    display.ctx.fillText('-------------', 10, 35);
+                    
+                    if (window.isCheckingOut) {
+                        display.ctx.fillStyle = '#ffcc00';
+                        display.ctx.fillText('PROCESSING...', 10, 65);
+                    } else if (storeBasket.length > 0) {
+                        display.ctx.fillText(storeBasket.length + ' ITEMS', 10, 55);
+                        display.ctx.fillText('CLICK TO', 10, 85);
+                        display.ctx.fillText('CHECK OUT', 10, 100);
+                    } else {
+                        display.ctx.fillText('> SCAN ITEM', 10, 55);
+                        display.ctx.fillText('> SWIPE CARD', 10, 75);
+                    }
+                    display.tex.needsUpdate = true;
+                }
+            }
+        }
         const loadingScreen = document.getElementById('loading-screen');
         let selectedItem = null;
 
@@ -217,7 +415,7 @@
             scene.background = new THREE.Color(0x111111);
 
             const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 8.5, 14);
+            camera.position.set(0, 8.5, 41);
             // Initial tilt will be set by cameraPitch in the state block
 
             const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -494,14 +692,14 @@
             const roomMats = [wallMat, wallMat, ceilingMat, wallMat, wallMat, wallMat];
 
             // Raised ceiling slightly to give the exit sign more breathing room
-            const wallsGeo = new THREE.BoxGeometry(60, 17.2, 65);
+            const wallsGeo = new THREE.BoxGeometry(60, 17.2, 75);
             const walls = new THREE.Mesh(wallsGeo, roomMats);
-            walls.position.set(0, 7.1, 0);
+            walls.position.set(0, 7.1, 7.5);
             scene.add(walls);
 
             // --- Exit Doorway ---
             const doorGroup = new THREE.Group();
-            doorGroup.position.set(0, 5.3, 32.4); // Placed flush against the front wall
+            doorGroup.position.set(0, 5.3, 44.9); // Placed flush against the front wall
             doorGroup.scale.set(1.44, 1.6, 1.6); // Made 10% thinner to leave room for wall posters
 
             // Stylized Comic-Book Glass Texture
@@ -715,6 +913,7 @@
         
         let backgroundSpineQueue = [];
         let isProcessingSpines = false;
+        let isStoreFullyLoaded = false;
 
         function startBackgroundSpineProcessing() {
                 backgroundSpineQueue = Array.from(movieMeshMap.values());
@@ -727,6 +926,7 @@
         function processNextSpine() {
             if (backgroundSpineQueue.length === 0) {
                 isProcessingSpines = false;
+                isStoreFullyLoaded = true;
                 return;
             }
 
@@ -850,7 +1050,7 @@
                     window.logDebug("Manifest Race Error: " + e.message);
                 }
 
-                const STORE_CACHE_VERSION = 3; // bump whenever layout/seed logic changes
+                const STORE_CACHE_VERSION = 4; // bump whenever layout/seed logic changes
                 const cacheKey = `virtualStoreCache_v${STORE_CACHE_VERSION}_day${todaySeed}`;
 
                 // Purge stale entries from old days / old code versions
@@ -930,8 +1130,15 @@
                 // --- Build Checkout Counter ---
                 function buildCheckoutCounter() {
                     const counterGroup = new THREE.Group();
-                    // Placed near the front door (Z = 32.3). Customers enter and see the counter at Z = 24.
-                    counterGroup.position.set(0, 0, 24);
+                    // Placed parallel to the left wall!
+                    counterGroup.position.set(-23.5, 0, 32);
+                    counterGroup.rotation.y = -Math.PI / 2; // Rotated correctly so -Z faces the center aisle
+                    
+                    // The desk local axes:
+                    // +X faces the door (+Z)
+                    // -X faces the movies (-Z)
+                    // -Z faces the center of the lobby (+X) - This is the Customer Side!
+                    // +Z faces the left wall (-X) - This is the Employee Side!
 
                     // 1. The Main Desk (Blockbuster Blue)
                     const deskGeo = new THREE.BoxGeometry(18, 3.5, 4);
@@ -947,18 +1154,23 @@
                     top.position.set(0, 3.6, 0);
                     counterGroup.add(top);
 
-                    // 3. Drop Box (Returns) on the right side
-                    const dropGeo = new THREE.BoxGeometry(3, 3, 2.5);
+                    // 3. Drop Box (Returns) - Attached to the door side of the desk (+X)
+                    const dropGeo = new THREE.BoxGeometry(3.5, 3.7, 4.5); // Taller and deeper so it doesn't clip
                     const dropMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4 });
                     const drop = new THREE.Mesh(dropGeo, dropMat);
-                    drop.position.set(6, 1.5, 0.75); // Flush with front of desk
+                    drop.position.set(11, 1.85, 0); 
+                    
+                    // Hitbox for Quick Drop!
+                    drop.userData = { isDropBox: true };
+                    interactableMeshes.push(drop);
                     counterGroup.add(drop);
 
                     const slotGeo = new THREE.PlaneGeometry(2.0, 0.2);
                     const slotMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
                     const slot = new THREE.Mesh(slotGeo, slotMat);
-                    // Front of drop box is at Z = 0.75 + 1.25 = 2.0
-                    slot.position.set(6, 2.2, 2.01);
+                    // Front of drop box is at Local Z = -2.25
+                    slot.position.set(11, 2.5, -2.26);
+                    slot.rotation.y = Math.PI; // Face the customer (-Z)
                     counterGroup.add(slot);
 
                     const dropTextGeo = new THREE.PlaneGeometry(2.2, 0.6);
@@ -972,49 +1184,55 @@
                     dropCtx.textAlign = 'center';
                     dropCtx.fillText('QUICK DROP', 128, 44);
                     const dropTex = new THREE.CanvasTexture(dropCanvas);
+                    
+                    // Save for global access
+                    window.dropCtx = dropCtx;
+                    window.dropTex = dropTex;
+
                     const dropTextMat = new THREE.MeshBasicMaterial({ map: dropTex });
                     const dropText = new THREE.Mesh(dropTextGeo, dropTextMat);
-                    dropText.position.set(6, 2.7, 2.01);
+                    dropText.position.set(11, 3.0, -2.26);
+                    dropText.rotation.y = Math.PI; // Face the customer (-Z)
                     counterGroup.add(dropText);
 
-                    // 4. Old CRT Monitors (POS Systems) facing employees
+                    // 4. CRT Monitors (POS Systems)
                     const crtGeo = new THREE.BoxGeometry(1.2, 1.2, 1.4);
                     const crtMat = new THREE.MeshStandardMaterial({ color: 0xdcd9d0, roughness: 0.8 }); // Beige plastic
                     const screenGeo = new THREE.PlaneGeometry(1.0, 0.9);
-                    // Draw a classic DOS-style POS screen!
-                    const screenCanvas = document.createElement('canvas');
-                    screenCanvas.width = 128; screenCanvas.height = 128;
-                    const screenCtx = screenCanvas.getContext('2d');
-                    screenCtx.fillStyle = '#0000aa'; // DOS Blue
-                    screenCtx.fillRect(0,0,128,128);
-                    screenCtx.fillStyle = '#ffffff';
-                    screenCtx.font = '12px monospace';
-                    screenCtx.fillText('RENTAL SYSTEM', 10, 20);
-                    screenCtx.fillText('-------------', 10, 35);
-                    screenCtx.fillText('> SCAN ITEM', 10, 55);
-                    screenCtx.fillText('> SWIPE CARD', 10, 75);
-                    const screenTex = new THREE.CanvasTexture(screenCanvas);
-                    const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
 
                     // Add 3 registers
-                    for (let i of [-5, 0, 5]) {
-                        // Skip the rightmost register to leave room for the drop box
-                        if (i === 5) continue;
-
+                    for (let i of [-6, 0, 6]) { // Spread them out slightly more
                         const crt = new THREE.Mesh(crtGeo, crtMat);
-                        crt.position.set(i, 4.3, 0.5); // Placed slightly toward the customer
+                        // Moved further back (+Z) to leave room for keyboards!
+                        crt.position.set(i, 4.3, 0.2);
+
+                        // Customer-facing interactive screen
+                        const screenCanvas = document.createElement('canvas');
+                        screenCanvas.width = 128; screenCanvas.height = 128;
+                        const screenCtx = screenCanvas.getContext('2d');
+                        const screenTex = new THREE.CanvasTexture(screenCanvas);
+                        screenTex.colorSpace = THREE.SRGBColorSpace;
+                        const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
+                        
+                        window.checkoutDisplays.push({ ctx: screenCtx, tex: screenTex });
 
                         const screen = new THREE.Mesh(screenGeo, screenMat);
-                        // Face the employees (who stand at -Z)
+                        // Face the customer (local -Z)
                         screen.position.set(0, 0, -0.71);
-                        screen.rotation.y = Math.PI;
+                        screen.rotation.y = Math.PI; 
+                        
+                        // Hitbox for interaction
+                        screen.userData = { isCheckout: true };
+                        interactableMeshes.push(screen);
+                        
                         crt.add(screen);
 
-                        // Add keyboard for employee
+                        // Add keyboard for customer
                         const keybGeo = new THREE.BoxGeometry(1.6, 0.1, 0.6);
                         const keybMat = new THREE.MeshStandardMaterial({ color: 0xc4c1b8, roughness: 0.9 });
                         const keyboard = new THREE.Mesh(keybGeo, keybMat);
-                        keyboard.position.set(i, 3.75, -1.0); // Placed on employee side of counter
+                        // Pulled entirely out in front of the CRT monitor
+                        keyboard.position.set(i, 3.75, -1.2); 
                         counterGroup.add(keyboard);
 
                         counterGroup.add(crt);
@@ -1023,12 +1241,14 @@
                     // Add a scanner
                     const scanGeo = new THREE.BoxGeometry(0.3, 0.4, 0.6);
                     const scanMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
-                    for (let i of [-5, 0]) {
+                    for (let i of [-6, 0]) {
                         const scanner = new THREE.Mesh(scanGeo, scanMat);
-                        scanner.position.set(i + 1.2, 3.8, -0.5);
+                        scanner.position.set(i + 1.2, 3.8, -0.8);
                         scanner.rotation.y = -Math.PI / 4;
                         counterGroup.add(scanner);
                     }
+                    
+                    updateBasketUI(); // Draw initial screen state
 
                     scene.add(counterGroup);
                 }
@@ -1066,7 +1286,7 @@
                     // Give it 0.04 thickness to act as a real physical rug on the floor
                     const matGeo = new THREE.BoxGeometry(8, 0.04, 5);
                     const mat = new THREE.Mesh(matGeo, matMats);
-                    mat.position.set(0, -1.48, 27); // Right near the entrance, just in front of the door
+                    mat.position.set(0, -1.48, 41); // Right near the entrance, just in front of the door
                     scene.add(mat);
                 }
 
@@ -1152,19 +1372,19 @@
                                 new THREE.MeshBasicMaterial({ visible: false })
                             );
                             hitBox.position.set(0, 0, 0);
-                            hitBox.userData = { parentGroup: caseGroup };
+                            hitBox.userData = {};
                             caseGroup.add(hitBox);
                             interactableMeshes.push(hitBox);
 
                             const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
-                            caseMesh.userData = { parentGroup: caseGroup };
+                            caseMesh.userData = {};
                             visualGroup.add(caseMesh);
 
                                 const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0 }); // FULLY MATTE
                                 const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
                                 frontMesh.position.z = halfDepth + 0.001;
                                 frontMesh.name = 'front';
-                                frontMesh.userData = { parentGroup: caseGroup };
+                                frontMesh.userData = {};
                                 visualGroup.add(frontMesh);
 
                                 // Add dummy planes for back and spine so the inspection generation has targets!
@@ -1172,14 +1392,14 @@
                                 backMesh.position.z = - (halfDepth + 0.001);
                                 backMesh.rotation.y = Math.PI;
                                 backMesh.name = 'back';
-                                backMesh.userData = { parentGroup: caseGroup };
+                                backMesh.userData = {};
                                 visualGroup.add(backMesh);
 
                                 const spineMesh = new THREE.Mesh(sharedSpineGeo, sleeveMat);
                                 spineMesh.position.x = - (halfWidth + 0.001);
                                 spineMesh.rotation.y = -Math.PI / 2;
                                 spineMesh.name = 'spine';
-                                spineMesh.userData = { parentGroup: caseGroup };
+                                spineMesh.userData = {};
                                 visualGroup.add(spineMesh);
 
                                 if (!isDvd) {
@@ -1187,14 +1407,14 @@
                                     rightSpineMesh.position.x = halfWidth + 0.001;
                                     rightSpineMesh.rotation.y = Math.PI / 2;
                                     rightSpineMesh.name = 'right_spine';
-                                    rightSpineMesh.userData = { parentGroup: caseGroup };
+                                    rightSpineMesh.userData = {};
                                     visualGroup.add(rightSpineMesh);
 
                                     const topMesh = new THREE.Mesh(sharedTopGeo, sleeveMat);
                                     topMesh.position.y = halfHeight + 0.001;
                                     topMesh.rotation.x = -Math.PI / 2;
                                     topMesh.name = 'top';
-                                    topMesh.userData = { parentGroup: caseGroup };
+                                    topMesh.userData = {};
                                     visualGroup.add(topMesh);
                                 }
 
@@ -1225,11 +1445,11 @@
                     if (!movies || movies.length === 0) return;
 
                     const posterPositions = [
-                        // Front Wall (Z = 32.3, looking back into the room -> rotate Math.PI)
-                        { x: -25, z: 32.3, rotY: Math.PI }, // Shifted outwards to clear the door
-                        { x: -15, z: 32.3, rotY: Math.PI },
-                        { x: 15,  z: 32.3, rotY: Math.PI },
-                        { x: 25,  z: 32.3, rotY: Math.PI },
+                        // Front Wall (Z = 44.8, looking back into the room -> rotate Math.PI)
+                        { x: -25, z: 44.8, rotY: Math.PI }, // Shifted outwards to clear the door
+                        { x: -15, z: 44.8, rotY: Math.PI },
+                        { x: 15,  z: 44.8, rotY: Math.PI },
+                        { x: 25,  z: 44.8, rotY: Math.PI },
                         // Side Walls (By the front door)
                         { x: -29.8, z: 27, rotY: Math.PI / 2 }, // Left Wall
                         { x: 29.8,  z: 27, rotY: -Math.PI / 2 } // Right Wall
@@ -1312,7 +1532,7 @@
                 buildWallPosters(allMovies);
                 buildWelcomeMat();
                 buildFloorDisplays(allMovies);
-                // buildCheckoutCounter();
+                buildCheckoutCounter();
                 
                 // Start lazy loading shelf colors/spines in the background only after front textures finish
                 const pollTextureQueue = () => {
@@ -1523,19 +1743,19 @@
                                 new THREE.MeshBasicMaterial({ visible: false })
                             );
                             hitBox.position.set(0, 0, 0);
-                            hitBox.userData = { parentGroup: caseGroup };
+                            hitBox.userData = {};
                             caseGroup.add(hitBox);
                             interactableMeshes.push(hitBox);
 
                             const caseMesh = new THREE.Mesh(sharedCaseGeo, casePlasticMat);
-                            caseMesh.userData = { parentGroup: caseGroup };
+                            caseMesh.userData = {};
                             visualGroup.add(caseMesh);
 
                             // 2. Front Poster Plane (slightly inset)
                             const frontMesh = new THREE.Mesh(sharedFrontGeo, frontMat);
                             frontMesh.position.z = halfDepth + 0.001;
                             frontMesh.name = 'front';
-                            frontMesh.userData = { parentGroup: caseGroup };
+                            frontMesh.userData = {};
                             visualGroup.add(frontMesh);
 
                             // 3. Back Cover Plane
@@ -1543,7 +1763,7 @@
                             backMesh.position.z = - (halfDepth + 0.001);
                             backMesh.rotation.y = Math.PI;
                             backMesh.name = 'back';
-                            backMesh.userData = { parentGroup: caseGroup };
+                            backMesh.userData = {};
                             visualGroup.add(backMesh);
 
                             // 4. Spine Plane
@@ -1551,7 +1771,7 @@
                             spineMesh.position.x = - (halfWidth + 0.001);
                             spineMesh.rotation.y = -Math.PI / 2;
                             spineMesh.name = 'spine';
-                            spineMesh.userData = { parentGroup: caseGroup };
+                            spineMesh.userData = {};
                             visualGroup.add(spineMesh);
 
                             if (!isDvd) {
@@ -1559,14 +1779,14 @@
                                 rightSpineMesh.position.x = halfWidth + 0.001;
                                 rightSpineMesh.rotation.y = Math.PI / 2;
                                 rightSpineMesh.name = 'right_spine';
-                                rightSpineMesh.userData = { parentGroup: caseGroup };
+                                rightSpineMesh.userData = {};
                                 visualGroup.add(rightSpineMesh);
 
                                 const topMesh = new THREE.Mesh(sharedTopGeo, sleeveMat);
                                 topMesh.position.y = halfHeight + 0.001;
                                 topMesh.rotation.x = -Math.PI / 2;
                                 topMesh.name = 'top';
-                                topMesh.userData = { parentGroup: caseGroup };
+                                topMesh.userData = {};
                                 visualGroup.add(topMesh);
                             }
                             
@@ -1578,7 +1798,7 @@
                                 const sticker = new THREE.Mesh(stickerGeo, stickerMat);
                                 sticker.position.set(0.2, -0.4, halfDepth + 0.002);
                                 sticker.rotation.z = (slotRNG() - 0.5) * 0.4;
-                                sticker.userData = { parentGroup: caseGroup };
+                                sticker.userData = {};
                                 visualGroup.add(sticker);
                             }
 
@@ -1624,6 +1844,15 @@
             nodeGeo.rotateX(-Math.PI / 2);
 
             const nodePositions = [
+                // Main Lobby Path (Straight down the middle)
+                {x: 0, z: 41}, {x: 0, z: 34}, {x: 0, z: 27},
+                
+                // Checkout Path (Left side, standing exactly in front of the registers)
+                // The desk's customer face is at X = -21.25. So we put the nodes at X = -17.
+                {x: -17, z: 41}, {x: -17, z: 34}, {x: -17, z: 27},
+                
+                // Right Side (Empty lobby)
+                {x: 15, z: 41}, {x: 15, z: 34}, {x: 15, z: 27},
                 // Front aisle (Z = 19)
                 {x: -20, z: 19}, {x: -13, z: 19}, {x: 0, z: 19}, {x: 13, z: 19}, {x: 20, z: 19},
                 // Middle aisle 1 (Z = 5)
@@ -1646,8 +1875,8 @@
 
             let targetCameraX = 0;
             let currentCameraX = 0;
-            let targetCameraZ = 14;
-            let currentCameraZ = 14;
+            let targetCameraZ = 41;
+            let currentCameraZ = 41;
             let targetFov = 60;
 
             // Camera Rotation (Gyroscopic/Drag)
@@ -1750,7 +1979,63 @@
 
                 scene.add(group);
                 
+                // Add a virtual Shopping Basket (Blockbuster Red with Holes)
+                const basketGroup = new THREE.Group();
+                // Moved further forward and down slightly so it's clearly visible in front of them
+                basketGroup.position.set(0, 5.0, -1.6); 
+                basketGroup.name = "basket_container";
+                
+                // Create a Canvas Texture with transparent square holes!
+                const bCanvas = document.createElement('canvas');
+                bCanvas.width = 256; bCanvas.height = 256;
+                const bCtx = bCanvas.getContext('2d');
+                bCtx.fillStyle = '#cc0000'; // Blockbuster Red
+                bCtx.fillRect(0,0,256,256);
+                bCtx.globalCompositeOperation = 'destination-out';
+                // Punch holes
+                for(let x=16; x<256; x+=32) {
+                    for(let y=16; y<256; y+=32) {
+                        bCtx.fillRect(x, y, 16, 16);
+                    }
+                }
+                const bTex = new THREE.CanvasTexture(bCanvas);
+                bTex.wrapS = THREE.RepeatWrapping;
+                bTex.wrapT = THREE.RepeatWrapping;
+                bTex.repeat.set(3, 1.5);
+                
+                // Bigger Basket Geometry
+                const basketGeo = new THREE.BoxGeometry(1.6, 0.9, 1.2); // Taller and narrower // Wide and deep enough for full 1.0 scale tapes!
+                
+                const basketMat = new THREE.MeshStandardMaterial({ 
+                    map: bTex, 
+                    roughness: 0.7, 
+                    side: THREE.DoubleSide,
+                    transparent: true, // Allows the holes to be see-through
+                    alphaTest: 0.5 // Ensures clean cutouts without sorting issues
+                });
+                
+                const invisibleMat = new THREE.MeshBasicMaterial({ visible: false });
+                // Top face is index 2, making it hollow!
+                const basketMats = [basketMat, basketMat, invisibleMat, basketMat, basketMat, basketMat];
+                const basket = new THREE.Mesh(basketGeo, basketMats);
+                basketGroup.add(basket);
+                
+                // Add handle (Torus in XY plane, so it arcs perfectly UP like a handle)
+                const handleGeo = new THREE.TorusGeometry(0.8, 0.06, 8, 24, Math.PI);
+                const handleMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+                const handle = new THREE.Mesh(handleGeo, handleMat);
+                // Placed at the top rim of the basket (Y = 0.3)
+                handle.position.set(0, 0.45, 0);
+                basketGroup.add(handle);
+                
+                group.add(basketGroup);
+
                 group.userData.dispose = () => {
+                    basketGeo.dispose();
+                    basketMat.dispose();
+                    handleGeo.dispose();
+                    handleMat.dispose();
+                    
                     [tvGeo, screenGeo, staticGeo, antGeo].forEach(g => g.dispose());
                     [tvMat, screenMat, staticMat, antMat, spriteMat].forEach(m => {
                         if (m.map) m.map.dispose();
@@ -1768,7 +2053,7 @@
                     if (STORE_MODE === 'singleplayer') return;
                 try {
                     // Connect to live Railway multiplayer server!
-                    ws = new WebSocket('wss://nathanbuster-production.up.railway.app');
+                    ws = new WebSocket(wsServer);
                     window.logDebug("WS constructor called!");
                     
                     ws.onopen = () => {
@@ -1777,7 +2062,7 @@
                     console.log("Connected to Multiplayer Server!");
                     ws.send(JSON.stringify({
                         type: 'JOIN',
-                        payload: { username: myUsername, userId: jfUserId, x: currentCameraX, z: currentCameraZ, rotY: cameraYaw }
+                        payload: { username: myUsername, userId: jfUserId, x: currentCameraX, z: currentCameraZ, rotY: cameraYaw, basket: storeBasket.map(b => b.Id) }
                     }));
 
                     if (window.pendingManifest) {
@@ -1802,6 +2087,8 @@
                     networkHeldItems.clear();
                     networkedPlayers.forEach(p => {
                         p.mesh.children.filter(c => c.name?.startsWith('held_item_')).forEach(disposeDummyGroup);
+                        const bc = p.mesh.getObjectByName("basket_container");
+                        if (bc) bc.children.filter(c => c.name?.startsWith('basket_item_')).forEach(c => { disposeDummyGroup(c); bc.remove(c); });
                         p.mesh.userData.dispose?.();
                         scene.remove(p.mesh);
                     });
@@ -1813,19 +2100,7 @@
                     }
                 };
 
-                function disposeDummyGroup(dummyGroup) {
-                    const frontMesh = dummyGroup.children.find(c => c.name === 'front');
-                    if (frontMesh?.userData?.isDynamicFront && frontMesh.material) {
-                        frontMesh.material.map?.dispose();
-                        frontMesh.material.dispose();
-                    }
-                    dummyGroup.children.forEach(child => {
-                        if (child.material?.userData?.isDynamicSleeve) {
-                            child.material.map?.dispose();
-                            child.material.dispose();
-                        }
-                    });
-                }
+                
 
                 function applyInspect(playerId, itemId) {
                     const p = networkedPlayers.get(playerId);
@@ -2050,6 +2325,7 @@
                                 targetQuaternion: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.rotY)
                             });
                             if (p.heldItem) applyInspect(id, p.heldItem);
+                            if (p.basket && p.basket.length > 0) applyBasketUpdate(id, p.basket);
                         });
                     }
                     else if (data.type === 'USER_JOINED') {
@@ -2062,6 +2338,7 @@
                             targetQuaternion: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.rotY)
                         });
                         if (p.heldItem) applyInspect(p.id, p.heldItem);
+                        if (p.basket && p.basket.length > 0) applyBasketUpdate(p.id, p.basket);
                     }
                     else if (data.type === 'USER_MOVED') {
                         const p = networkedPlayers.get(data.payload.id);
@@ -2074,6 +2351,8 @@
                         const p = networkedPlayers.get(data.payload.id);
                         if (p) {
                             p.mesh.children.filter(c => c.name?.startsWith('held_item_')).forEach(disposeDummyGroup);
+                        const bc = p.mesh.getObjectByName("basket_container");
+                        if (bc) bc.children.filter(c => c.name?.startsWith('basket_item_')).forEach(c => { disposeDummyGroup(c); bc.remove(c); });
                             p.mesh.userData.dispose?.();
                             scene.remove(p.mesh);
                             networkedPlayers.delete(data.payload.id);
@@ -2085,13 +2364,109 @@
                     else if (data.type === 'USER_DROP') {
                         applyDrop(data.payload.id, data.payload.itemId);
                     }
+                    else if (data.type === 'USER_UPDATE_BASKET') {
+                        applyBasketUpdate(data.payload.id, data.payload.basket);
+                    }
                 };
                 } catch(e) {
                     console.error("Multiplayer connection failed", e);
                 }
             }
-            connectWS();
+            
+                        
+        function disposeDummyGroup(dummyGroup) {
+            const frontMesh = dummyGroup.children.find(c => c.name === 'front');
+            if (frontMesh?.userData?.isDynamicFront && frontMesh.material) {
+                frontMesh.material.map?.dispose();
+                frontMesh.material.dispose();
+            }
 
+            dummyGroup.children.forEach(child => {
+                if (child.material?.userData?.isDynamicSleeve) {
+                    child.material.map?.dispose();
+                    child.material.dispose();
+                }
+            });
+        }
+
+        function applyBasketUpdate(playerId, basketIds, retries = 300) {
+                const p = networkedPlayers.get(playerId);
+                if (!p) return;
+                
+                const container = p.mesh.getObjectByName("basket_container");
+                if (!container) return;
+                
+                // If there are IDs, make sure they are ALL in the movieMeshMap before proceeding
+                if (basketIds && basketIds.length > 0) {
+                    let allFound = true;
+                    for (const itemId of basketIds) {
+                        let found = false;
+                        for (const g of movieMeshMap.values()) {
+                            if (g.userData && g.userData.item && g.userData.item.Id === itemId) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            allFound = false;
+                            break;
+                        }
+                    }
+                    
+                    if ((!allFound || !isStoreFullyLoaded) && retries > 0) {
+                        setTimeout(() => applyBasketUpdate(playerId, basketIds, retries - 1), 1000); // Wait for store to fully build
+                        return;
+                    }
+                }
+                
+                // Dispose old dummy tapes inside basket
+                container.children
+                    .filter(c => c.name.startsWith('basket_item_'))
+                    .forEach(c => {
+                        disposeDummyGroup(c);
+                        container.remove(c);
+                    });
+                
+                // Spawn new dummy tapes for each item in the basket
+                if (basketIds) {
+                    basketIds.forEach((itemId, idx) => {
+                        let sourceGroup = null;
+                        for (const g of movieMeshMap.values()) {
+                            if (g.userData && g.userData.item && g.userData.item.Id === itemId) {
+                                sourceGroup = g;
+                                break;
+                            }
+                        }
+                        
+                        if (sourceGroup) {
+                            const vg = sourceGroup.getObjectByName('visualGroup');
+                            if (vg) {
+                                const dummy = vg.clone();
+                                dummy.name = "basket_item_" + itemId;
+                                
+                                dummy.children.forEach(child => {
+                                    if (child.isMesh && child.material) {
+                                        child.material = child.material.clone();
+                                    }
+                                });
+
+                                dummy.scale.set(1.0, 1.0, 1.0);
+                                dummy.rotation.set(0, 0, -Math.PI / 2);
+                                
+                                if (idx < (STORE_DESIGN === 'dvd' ? 7 : 4)) {
+                                    const spacing = STORE_DESIGN === 'dvd' ? 0.16 : 0.28;
+                                    const zOffset = -0.42 + (idx * spacing);
+                                    dummy.position.set(0, 0, zOffset);
+                                    container.add(dummy);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            
+            connectWS();
+            
             // --- State Machine & Inspection ---
             const STATE = { BROWSE: 0, INSPECT: 1, PLAYING: 2 };
             let currentState = STATE.BROWSE;
@@ -2175,6 +2550,12 @@
                     if (hoveredMesh && hoveredMesh.userData) {
                         if (hoveredMesh.userData.isExit) {
                             parent.postMessage({ type: 'EXIT' }, '*');
+                            return;
+                        } else if (hoveredMesh.userData.isCheckout) {
+                            window.runCheckout();
+                            return;
+                        } else if (hoveredMesh.userData.isDropBox) {
+                            window.runDropBox();
                             return;
                         } else if (hoveredMesh.userData.isNode) {
                             // Clicked a floor node to walk
@@ -2377,6 +2758,17 @@
 
                             selectedItem = inspectedMesh.userData;
                             hudTitle.innerText = selectedItem.title || selectedItem.name;
+                            
+                            // Update Basket State
+                            if (itemId && storeBasket.find(b => b.Id === itemId)) {
+                                hudBasket.innerText = "In Basket ✓";
+                                hudBasket.disabled = true;
+                            } else {
+                                hudBasket.innerText = "Add to Basket";
+                                hudBasket.disabled = false;
+                            }
+                            updateBasketUI();
+                            
                             hud.classList.add('show');
                             document.body.style.cursor = 'grab';
 
@@ -2457,6 +2849,180 @@
                     document.body.style.cursor = 'default';
                 }
             });
+
+            
+            // Basket Add Logic
+            hudBasket.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (selectedItem && selectedItem.item) {
+                    const item = selectedItem.item;
+                    if (!storeBasket.find(b => b.Id === item.Id)) {
+                        storeBasket.push({ Id: item.Id, Name: item.Name });
+                        try {
+    sessionStorage.setItem('storeBasket', JSON.stringify(storeBasket));
+} catch(err) {
+    console.error("Stringify crash on storeBasket!", storeBasket);
+    throw err;
+}
+                        hudBasket.innerText = "In Basket ✓";
+                        hudBasket.disabled = true;
+                        updateBasketUI();
+                        broadcastBasket();
+                        // Synthesize beep
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(800, ctx.currentTime);
+                            osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start();
+                            osc.stop(ctx.currentTime + 0.1);
+                        } catch(err) { /* ignore */ }
+                    }
+                }
+            });
+
+            // Checkout Logic (Now triggered from 3D space)
+            window.runCheckout = async function() {
+                if (storeBasket.length === 0 || window.isCheckingOut) return;
+                
+                window.isCheckingOut = true;
+                updateBasketUI();
+                
+                try {
+                    const hdrs = { 'X-Emby-Token': jfToken };
+                    
+                    // 1. Get or create playlist
+                    const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?IncludeItemTypes=Playlist&Recursive=true`, { headers: hdrs }).then(r => r.json());
+                    let pl = (res.Items || []).find(i => i.Name === 'NathanBuster Rentals');
+                    
+                    if (!pl) {
+                        pl = await fetch(`${jfServer}/Playlists`, {
+                            method: 'POST', 
+                            headers: { ...hdrs, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ Name: 'NathanBuster Rentals', MediaType: 'Video', Ids: [], UserId: jfUserId })
+                        }).then(r => r.json());
+                    }
+                    
+                    if (!pl || !pl.Id) throw new Error("Failed to get/create playlist");
+                    
+                    // 2. Fetch existing playlist items to deduplicate
+                    const existingRes = await fetch(`${jfServer}/Playlists/${pl.Id}/Items?UserId=${jfUserId}&Fields=Id`, { headers: hdrs }).then(r => r.json());
+                    const existingIds = new Set((existingRes.Items || []).map(i => i.Id));
+                    
+                    // 3. Filter basket
+                    const newIds = storeBasket.map(b => b.Id).filter(id => !existingIds.has(id));
+                    
+                    // 4. Add to playlist
+                    if (newIds.length > 0) {
+                        await fetch(`${jfServer}/Playlists/${pl.Id}/Items?userId=${jfUserId}&ids=${newIds.join(',')}`, {
+                            method: 'POST',
+                            headers: hdrs
+                        });
+                    }
+                    
+                    // Success!
+                    storeBasket = [];
+                    sessionStorage.removeItem('storeBasket');
+                    broadcastBasket();
+                    
+                    // Ca-ching sound
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(600, ctx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.15);
+                        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.3);
+                    } catch(err) {}
+                    
+                    alert("Checkout Complete! Movies added to 'NathanBuster Rentals' playlist.");
+                } catch (err) {
+                    console.error("Checkout failed:", err);
+                    alert("Checkout failed. Check the console for details.");
+                } finally {
+                    window.isCheckingOut = false;
+                    updateBasketUI();
+                }
+            };
+            
+            // Quick Drop Logic
+            window.runDropBox = async function() {
+                if (window.isClearingPlaylist) return;
+                window.isClearingPlaylist = true;
+                
+                if (window.dropCtx) {
+                    window.dropCtx.fillStyle = '#ffcc00';
+                    window.dropCtx.fillRect(0,0,256,64);
+                    window.dropCtx.fillStyle = '#ff0000';
+                    window.dropCtx.fillText('CLEARING...', 128, 44);
+                    window.dropTex.needsUpdate = true;
+                }
+                
+                try {
+                    const hdrs = { 'X-Emby-Token': jfToken };
+                    // 1. Get playlist
+                    const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?IncludeItemTypes=Playlist&Recursive=true`, { headers: hdrs }).then(r => r.json());
+                    let pl = (res.Items || []).find(i => i.Name === 'NathanBuster Rentals');
+                    if (pl && pl.Id) {
+                        // 2. Fetch items to get entryIds
+                        const existingRes = await fetch(`${jfServer}/Playlists/${pl.Id}/Items?UserId=${jfUserId}&Fields=PlaylistItemId`, { headers: hdrs }).then(r => r.json());
+                        const entryIds = (existingRes.Items || []).map(i => i.PlaylistItemId).filter(Boolean);
+                        
+                        if (entryIds.length > 0) {
+                            // 3. Delete them!
+                            await fetch(`${jfServer}/Playlists/${pl.Id}/Items?userId=${jfUserId}&entryIds=${entryIds.join(',')}`, {
+                                method: 'DELETE',
+                                headers: hdrs
+                            });
+                            
+                            // Tape Eject Sound (Chunky square wave)
+                            try {
+                                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                                const osc = ctx.createOscillator();
+                                const gain = ctx.createGain();
+                                osc.type = 'square';
+                                osc.frequency.setValueAtTime(100, ctx.currentTime);
+                                osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.4);
+                                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                                osc.connect(gain);
+                                gain.connect(ctx.destination);
+                                osc.start();
+                                osc.stop(ctx.currentTime + 0.4);
+                            } catch(err) {}
+                            
+                            alert("Playlist Cleared! Your rentals have been successfully returned.");
+                        } else {
+                            alert("You have no active rentals to return!");
+                        }
+                    } else {
+                        alert("You haven't rented anything yet!");
+                    }
+                } catch (err) {
+                    console.error("Drop failed:", err);
+                } finally {
+                    window.isClearingPlaylist = false;
+                    if (window.dropCtx) {
+                        window.dropCtx.fillStyle = '#ffcc00';
+                        window.dropCtx.fillRect(0,0,256,64);
+                        window.dropCtx.fillStyle = '#000000';
+                        window.dropCtx.fillText('QUICK DROP', 128, 44);
+                        window.dropTex.needsUpdate = true;
+                    }
+                }
+            };
 
             hudPlay.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2568,7 +3134,9 @@
                     if (lastIntersection) {
                         let hit = lastIntersection.object;
 
-                        if (hit.userData && hit.userData.parentGroup) { hit = hit.userData.parentGroup; }
+                        while (hit && !hit.userData?.isCase && !hit.userData?.isCheckout && !hit.userData?.isDropBox && !hit.userData?.isNode) {
+                            hit = hit.parent;
+                        }
 
                         // Raycaster ignores `visible`, so exclude held cases manually
                         if (hit && hit.userData && hit.userData.isCase && (networkHeldItems.has(hit.userData.id) || hit.visible === false)) {
@@ -2602,6 +3170,9 @@
                                 }
                                 else if (hoveredMesh.userData.isExit) {
                                     hoveredMesh.material.opacity = 0.7;
+                                    document.body.style.cursor = 'pointer';
+                                }
+                                else if (hoveredMesh.userData.isCheckout || hoveredMesh.userData.isDropBox) {
                                     document.body.style.cursor = 'pointer';
                                 }
                                 else {

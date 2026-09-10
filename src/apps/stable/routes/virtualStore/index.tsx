@@ -1,3 +1,4 @@
+/* global __MULTIPLAYER_SERVER__ */
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../../hooks/useApi';
@@ -32,6 +33,7 @@ export default function VirtualStore() {
                     serverUrl: apiClient.serverAddress(),
                     userId: apiClient.getCurrentUserId(),
                     username: user?.Name || 'Guest',
+                    multiplayerServer: __MULTIPLAYER_SERVER__ || '',
                     locale: 'en-US',
                     theme: 'dark'
                 };
