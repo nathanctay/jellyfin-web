@@ -3,7 +3,6 @@ import escapeHtml from 'escape-html';
 
 import { getUserViewsQuery } from 'hooks/api/useUserViews';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
-import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
 
 import layoutManager from '../layoutManager';
@@ -247,6 +246,38 @@ function getLandingScreenOptions(type) {
                 value: LibraryTab.Playlists
             }
         );
+    } else if (type === 'books') {
+        list.push(
+            {
+                name: globalize.translate('Folders'),
+                value: LibraryTab.Folders,
+                isDefault: true
+            },
+            {
+                name: globalize.translate('Books'),
+                value: LibraryTab.Books
+            },
+            {
+                name: globalize.translate('Authors'),
+                value: LibraryTab.Authors
+            },
+            {
+                name: globalize.translate('Suggestions'),
+                value: LibraryTab.Suggestions
+            },
+            {
+                name: globalize.translate('Genres'),
+                value: LibraryTab.Genres
+            },
+            {
+                name: globalize.translate('Collections'),
+                value: LibraryTab.Collections
+            },
+            {
+                name: globalize.translate('Favorites'),
+                value: LibraryTab.Favorites
+            }
+        );
     }
 
     return list;
@@ -342,7 +373,7 @@ function getPerLibrarySettingsHtml(item, user, userSettings) {
         html = `<div class="checkboxListContainer">${html}</div>`;
     }
 
-    const landingScreenTypes = ['movies', 'tvshows', 'music', 'livetv', 'homevideos', 'musicvideos', 'mixed'];
+    const landingScreenTypes = ['movies', 'tvshows', 'music', 'livetv', 'homevideos', 'musicvideos', 'mixed', 'books'];
     if (landingScreenTypes.includes(collectionType)) {
         const idForLanding = collectionType === 'livetv' ? collectionType : item.Id;
         html += '<div class="selectContainer">';
@@ -389,7 +420,7 @@ function loadForm(context, user, userSettings, apiClient) {
 
     const promise1 = queryClient
         .fetchQuery(getUserViewsQuery(
-            toApi(apiClient),
+            ServerConnections.getApi(apiClient.serverId()),
             {
                 userId: user.Id,
                 includeHidden: true
@@ -449,7 +480,7 @@ function getCheckboxItems(selector, context, isChecked) {
     return list;
 }
 
-function saveUser(context, user, userSettingsInstance, apiClient) {
+async function saveUser(context, user, userSettingsInstance, apiClient) {
     user.Configuration.HidePlayedInLatest = context.querySelector('.chkHidePlayedFromLatest').checked;
 
     user.Configuration.LatestItemsExcludes = getCheckboxItems('.chkIncludeInLatest', context, false).map(i => {
@@ -493,7 +524,11 @@ function saveUser(context, user, userSettingsInstance, apiClient) {
         userSettingsInstance.set(`landing-${selectLanding.getAttribute('data-folderid')}`, selectLanding.value);
     }
 
-    return apiClient.updateUserConfiguration(user.Id, user.Configuration);
+    await apiClient.updateUserConfiguration(user.Id, user.Configuration);
+    // Invalidate all user queries
+    void queryClient.invalidateQueries({
+        queryKey: ['User', user.Id]
+    });
 }
 
 function save(instance, context, userId, userSettings, apiClient, enableSaveConfirmation) {

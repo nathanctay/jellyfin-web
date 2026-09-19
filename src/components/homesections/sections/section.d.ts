@@ -1,5 +1,5 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
-import type { BaseItemDtoQueryResult } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
+import type { BaseItemDtoQueryResult } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto-query-result';
 
 export interface SectionOptions {
     enableOverflow: boolean

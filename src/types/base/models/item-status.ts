@@ -1,5 +1,5 @@
-import { RecordingStatus } from '@jellyfin/sdk/lib/generated-client';
-import { SeriesStatus } from '@jellyfin/sdk/lib/generated-client';
+import { RecordingStatus } from '@jellyfin/sdk/lib/generated-client/models/recording-status';
+import { SeriesStatus } from '@jellyfin/sdk/lib/generated-client/models/series-status';
 
 export const ItemStatus = {
     ...RecordingStatus,

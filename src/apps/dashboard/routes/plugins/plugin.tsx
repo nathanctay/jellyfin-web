@@ -1,5 +1,5 @@
-import { PluginStatus } from '@jellyfin/sdk/lib/generated-client';
-import type { VersionInfo } from '@jellyfin/sdk/lib/generated-client';
+import { PluginStatus } from '@jellyfin/sdk/lib/generated-client/models/plugin-status';
+import type { VersionInfo } from '@jellyfin/sdk/lib/generated-client/models/version-info';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';

@@ -5,7 +5,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, EffectFade } from 'swiper/modules';
 import type { Swiper as SwiperType } from 'swiper';
 
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
 import type { ApiClient } from 'jellyfin-apiclient';
 
 import { BlurhashCanvas } from 'react-blurhash';

@@ -1,6 +1,6 @@
 import { Api } from '@jellyfin/sdk';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 
 import globalize from 'lib/globalize';

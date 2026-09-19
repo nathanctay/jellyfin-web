@@ -1,11 +1,11 @@
-import type { LibraryUpdateInfo } from '@jellyfin/sdk/lib/generated-client';
-import { MediaType } from '@jellyfin/sdk/lib/generated-client';
+import type { LibraryUpdateInfo } from '@jellyfin/sdk/lib/generated-client/models/library-update-info';
+import { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
 import { OutboundWebSocketMessageType } from '@jellyfin/sdk/lib/websocket';
 import React, { type FC, type PropsWithChildren, useCallback, useEffect, useRef } from 'react';
 import classNames from 'classnames';
 import Box from '@mui/material/Box';
 import Sortable from 'sortablejs';
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useQueryClient } from '@tanstack/react-query';
 
 import { useApi } from 'hooks/useApi';
 import { usePlaylistsMoveItemMutation } from 'hooks/useFetchItems';
@@ -44,7 +44,7 @@ export interface ItemsContainerProps {
     parentId?: ParentId;
     reloadItems?: () => void;
     getItemsHtml?: () => string;
-    queryKey?: string[]
+    queryKey?: QueryKey
 }
 
 const ItemsContainer: FC<PropsWithChildren<ItemsContainerProps>> = ({
@@ -175,13 +175,9 @@ const ItemsContainer: FC<PropsWithChildren<ItemsContainerProps>> = ({
         }
     }, []);
 
-    const invalidateQueries = useCallback(async () => {
-        await queryClient.invalidateQueries({
-            queryKey,
-            type: 'all',
-            refetchType: 'active'
-        });
-    }, [queryClient, queryKey]);
+    const invalidateQueries = useCallback(() => (
+        queryClient.invalidateQueries({ queryKey })
+    ), [queryClient, queryKey]);
 
     const notifyRefreshNeeded = useCallback(
         (isInForeground: boolean) => {
@@ -193,34 +189,6 @@ const ItemsContainer: FC<PropsWithChildren<ItemsContainerProps>> = ({
             }
         },
         [reloadItems]
-    );
-
-    const onUserDataChanged = useCallback(async () => {
-        await invalidateQueries();
-    },
-    [invalidateQueries]
-    );
-
-    const onTimerCreated = useCallback(async () => {
-        await invalidateQueries();
-    },
-    [invalidateQueries]
-    );
-
-    const onSeriesTimerCreated = useCallback(async () => {
-        await invalidateQueries();
-    }, [invalidateQueries]);
-
-    const onTimerCancelled = useCallback(async () => {
-        await invalidateQueries();
-    },
-    [invalidateQueries]
-    );
-
-    const onSeriesTimerCancelled = useCallback(async () => {
-        await invalidateQueries();
-    },
-    [invalidateQueries]
     );
 
     const onLibraryChanged = useCallback(
@@ -306,21 +274,17 @@ const ItemsContainer: FC<PropsWithChildren<ItemsContainerProps>> = ({
     const subscribe = useCallback(() => {
         if (api) {
             unsubscribeRef.current = [
-                api.subscribe([OutboundWebSocketMessageType.UserDataChanged], onUserDataChanged),
-                api.subscribe([OutboundWebSocketMessageType.TimerCreated], onTimerCreated),
-                api.subscribe([OutboundWebSocketMessageType.TimerCancelled], onTimerCancelled),
-                api.subscribe([OutboundWebSocketMessageType.SeriesTimerCreated], onSeriesTimerCreated),
-                api.subscribe([OutboundWebSocketMessageType.SeriesTimerCancelled], onSeriesTimerCancelled),
+                api.subscribe([OutboundWebSocketMessageType.UserDataChanged], invalidateQueries),
+                api.subscribe([OutboundWebSocketMessageType.TimerCreated], invalidateQueries),
+                api.subscribe([OutboundWebSocketMessageType.TimerCancelled], invalidateQueries),
+                api.subscribe([OutboundWebSocketMessageType.SeriesTimerCreated], invalidateQueries),
+                api.subscribe([OutboundWebSocketMessageType.SeriesTimerCancelled], invalidateQueries),
                 api.subscribe([OutboundWebSocketMessageType.LibraryChanged], onLibraryChanged)
             ];
         }
     }, [
         api,
-        onUserDataChanged,
-        onTimerCreated,
-        onTimerCancelled,
-        onSeriesTimerCreated,
-        onSeriesTimerCancelled,
+        invalidateQueries,
         onLibraryChanged
     ]);
 
@@ -416,18 +380,14 @@ const ItemsContainer: FC<PropsWithChildren<ItemsContainerProps>> = ({
         destroyMultiSelect,
         initDragReordering,
         initMultiSelect,
+        invalidateQueries,
         isContextMenuEnabled,
         isDragreOrderEnabled,
         isMultiSelectEnabled,
         onClick,
         onContextMenu,
         onLibraryChanged,
-        onPlaybackStopped,
-        onSeriesTimerCancelled,
-        onSeriesTimerCreated,
-        onTimerCancelled,
-        onTimerCreated,
-        onUserDataChanged
+        onPlaybackStopped
     ]);
 
     const itemsContainerClass = classNames(

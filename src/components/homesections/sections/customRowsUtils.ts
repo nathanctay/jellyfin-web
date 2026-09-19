@@ -1,4 +1,4 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
 import escapeHtml from 'escape-html';
 
 export interface PluginSectionInfo {

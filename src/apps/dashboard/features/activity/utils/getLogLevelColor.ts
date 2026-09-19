@@ -1,4 +1,4 @@
-import { LogLevel } from '@jellyfin/sdk/lib/generated-client';
+import { LogLevel } from '@jellyfin/sdk/lib/generated-client/models/log-level';
 
 const getLogLevelColor = (level: LogLevel) => {
     switch (level) {

@@ -1,6 +1,6 @@
-import { MediaStreamType } from '@jellyfin/sdk/lib/generated-client';
-import { VideoType } from '@jellyfin/sdk/lib/generated-client';
-import type { MediaStream } from '@jellyfin/sdk/lib/generated-client';
+import { MediaStreamType } from '@jellyfin/sdk/lib/generated-client/models/media-stream-type';
+import { VideoType } from '@jellyfin/sdk/lib/generated-client/models/video-type';
+import type { MediaStream } from '@jellyfin/sdk/lib/generated-client/models/media-stream';
 import itemHelper from 'components/itemHelper';
 import datetime from 'scripts/datetime';
 import globalize from 'lib/globalize';

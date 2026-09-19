@@ -1,4 +1,3 @@
-/* global __SERVER_URL__ */
 import escapeHtml from 'escape-html';
 import Headroom from 'headroom.js';
 
@@ -8,7 +7,6 @@ import { getUserViewsQuery } from 'hooks/api/useUserViews';
 import globalize from 'lib/globalize';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 import { EventType } from 'constants/eventType';
-import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
 
 import dom from '../utils/dom';
@@ -166,8 +164,6 @@ function updateUserInHeader(user) {
         if (!layoutManager.tv) {
             headerCastButton.classList.remove('hide');
         }
-        
-
 
         const policy = user.Policy ? user.Policy : user.localUser.Policy;
 
@@ -244,8 +240,6 @@ function bindMenuEvents() {
     if (headerSearchButton) {
         headerSearchButton.addEventListener('click', showSearch);
     }
-    
-
 
     headerUserButton.addEventListener('click', onHeaderUserButtonClick);
     headerHomeButton.addEventListener('click', onHeaderHomeButtonClick);
@@ -392,8 +386,10 @@ function onSidebarLinkClick() {
 }
 
 function getUserViews(apiClient, userId) {
+    const api = ServerConnections.getApi(apiClient.serverId());
+
     return queryClient
-        .fetchQuery(getUserViewsQuery(toApi(apiClient), { userId }))
+        .fetchQuery(getUserViewsQuery(api, { userId }))
         .then(function (result) {
             const items = result.Items;
             const list = [];
@@ -498,10 +494,6 @@ function onMainDrawerClick(e) {
     if (dom.parentWithTag(e.target, 'A')) {
         setTimeout(closeMainDrawer, 30);
     }
-}
-
-function onSelectServerClick() {
-    Dashboard.selectServer();
 }
 
 function onSettingsClick() {
@@ -689,7 +681,7 @@ let navDrawerInstance;
 let mainDrawerButton;
 let headerHomeButton;
 let currentDrawerType;
-let documentTitle = 'NathanFlix';
+const documentTitle = 'NathanFlix';
 let pageTitleElement;
 let headerBackButton;
 let headerUserButton;
@@ -720,15 +712,14 @@ function setTabs (type, selectedIndex, builder) {
 }
 
 /**
- * Fetch the server name and update the document title.
+ * Restore the document title once the server connection is established.
+ * The fork uses a fixed title rather than the server name.
  * @param {import('jellyfin-apiclient').ApiClient} [_apiClient] The current api client.
  */
 const fetchServerName = (_apiClient) => {
     _apiClient
         ?.getPublicSystemInfo()
-        .then(({ ServerName }) => {
-            // documentTitle = ServerName || documentTitle;
-            documentTitle = documentTitle;
+        .then(() => {
             document.title = documentTitle;
         })
         .catch(err => {

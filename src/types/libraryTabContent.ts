@@ -1,5 +1,5 @@
-import type { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
-import type { CollectionType } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import type { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
 import type { LibraryTab } from './libraryTab';
 import type { SectionType } from './sections';
 
@@ -28,5 +28,3 @@ export interface LibraryTabContent {
     isAlphabetPickerEnabled?: boolean;
     noItemsMessage?: string;
 }
-
-export type LibraryTabMapping = Record<number, LibraryTabContent>;

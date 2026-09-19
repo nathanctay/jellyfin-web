@@ -1,4 +1,4 @@
-import type { BackupManifestDto } from '@jellyfin/sdk/lib/generated-client';
+import type { BackupManifestDto } from '@jellyfin/sdk/lib/generated-client/models/backup-manifest-dto';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';

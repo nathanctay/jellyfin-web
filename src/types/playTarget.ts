@@ -1,5 +1,5 @@
-import type { MediaType } from '@jellyfin/sdk/lib/generated-client';
-import type { UserDto } from '@jellyfin/sdk/lib/generated-client';
+import type { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
+import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
 
 export interface PlayTarget {
     id: string

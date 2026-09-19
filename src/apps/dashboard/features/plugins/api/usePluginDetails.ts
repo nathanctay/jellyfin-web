@@ -1,4 +1,4 @@
-import { PluginStatus } from '@jellyfin/sdk/lib/generated-client';
+import { PluginStatus } from '@jellyfin/sdk/lib/generated-client/models/plugin-status';
 import { useMemo } from 'react';
 
 import { useApi } from 'hooks/useApi';

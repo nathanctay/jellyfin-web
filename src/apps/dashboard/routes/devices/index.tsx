@@ -1,4 +1,4 @@
-import type { DeviceInfoDto } from '@jellyfin/sdk/lib/generated-client';
+import type { DeviceInfoDto } from '@jellyfin/sdk/lib/generated-client/models/device-info-dto';
 import Delete from '@mui/icons-material/Delete';
 import Edit from '@mui/icons-material/Edit';
 import Box from '@mui/material/Box/Box';
@@ -77,7 +77,7 @@ export const Component = () => {
     const onConfirmDelete = useCallback(() => {
         if (pendingDeleteDeviceId) {
             deleteDevice.mutate({
-                id: pendingDeleteDeviceId
+                id: [pendingDeleteDeviceId]
             }, {
                 onSettled: onCloseDeleteConfirmDialog
             });
@@ -97,7 +97,7 @@ export const Component = () => {
             Promise
                 .all(devices.map(item => {
                     if (api && item.Id && api.deviceInfo.id === item.Id) {
-                        return deleteDevice.mutateAsync({ id: item.Id });
+                        return deleteDevice.mutateAsync({ id: [item.Id] });
                     }
                     return Promise.resolve();
                 }))

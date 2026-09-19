@@ -1,5 +1,5 @@
 import { Api } from '@jellyfin/sdk';
-import type { EndPointInfo } from '@jellyfin/sdk/lib/generated-client';
+import type { EndPointInfo } from '@jellyfin/sdk/lib/generated-client/models/end-point-info';
 import { getSystemApi } from '@jellyfin/sdk/lib/utils/api/system-api';
 
 /** Maximum bitrate (Int32) */

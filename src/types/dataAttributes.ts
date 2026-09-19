@@ -1,5 +1,5 @@
-import type { CollectionType } from '@jellyfin/sdk/lib/generated-client';
-import type { UserItemDataDto } from '@jellyfin/sdk/lib/generated-client';
+import type { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import type { UserItemDataDto } from '@jellyfin/sdk/lib/generated-client/models/user-item-data-dto';
 
 import { ItemAction } from 'constants/itemAction';
 

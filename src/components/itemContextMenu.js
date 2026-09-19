@@ -2,13 +2,12 @@ import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-ite
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 
 import { AppFeature } from 'constants/appFeature';
-import { toApi } from 'utils/jellyfin-apiclient/compat';
+import { ServerConnections } from 'lib/jellyfin-apiclient';
 
 import browser from '../scripts/browser';
 import { copy } from '../scripts/clipboard';
 import dom from '../utils/dom';
 import globalize from '../lib/globalize';
-import { ServerConnections } from 'lib/jellyfin-apiclient';
 import actionsheet from './actionSheet/actionSheet';
 import { appHost } from './apphost';
 import { appRouter } from './router/appRouter';
@@ -408,7 +407,7 @@ function executeCommand(item, id, options) {
     const itemId = item.Id;
     const serverId = item.ServerId;
     const apiClient = ServerConnections.getApiClient(serverId);
-    const api = toApi(apiClient);
+    const api = ServerConnections.getApi(serverId);
 
     return new Promise(function (resolve, reject) {
         // eslint-disable-next-line sonarjs/max-switch-cases
@@ -554,23 +553,6 @@ function executeCommand(item, id, options) {
                         itemId: itemId,
                         serverId: serverId
                     }).then(getResolveFunction(resolve, id, true), getResolveFunction(resolve, id));
-                });
-                break;
-            case 'togglefeatured':
-                apiClient.getItem(apiClient.getCurrentUserId(), itemId).then(function (fullItem) {
-                    const tags = fullItem.Tags || [];
-                    const isFeatured = tags.includes('Featured');
-
-                    if (isFeatured) {
-                        fullItem.Tags = tags.filter(t => t !== 'Featured');
-                    } else {
-                        fullItem.Tags = [...tags, 'Featured'];
-                    }
-
-                    apiClient.updateItem(fullItem).then(function () {
-                        toast(isFeatured ? 'Removed from Featured' : 'Added to Featured');
-                        getResolveFunction(resolve, id, true)();
-                    });
                 });
                 break;
             case 'identify':
