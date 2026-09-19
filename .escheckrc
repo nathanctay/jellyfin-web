@@ -5,6 +5,7 @@
         "./dist/libraries/pdf.worker.js",
         "./dist/libraries/worker-bundle.js",
         "./dist/libbitsub.*.js",
-        "./dist/serviceworker.js"
+        "./dist/serviceworker.js",
+        "./dist/assets/3d-store/**/*.js"
     ]
 }
