@@ -3064,8 +3064,25 @@ const retailAudio = new RetailAudio();
                         pl = await fetch(`${jfServer}/Playlists`, {
                             method: 'POST', 
                             headers: { ...hdrs, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ Name: 'NathanBuster Rentals', MediaType: 'Video', Ids: [], UserId: jfUserId })
+                            body: JSON.stringify({ 
+                                Name: 'NathanBuster Rentals', 
+                                MediaType: 'Video', 
+                                Ids: [], 
+                                UserId: jfUserId,
+                                IsPublic: false,
+                                Users: [{ UserId: jfUserId, CanEdit: true }]
+                            })
                         }).then(r => r.json());
+                    } else if (pl.OpenAccess) {
+                        await fetch(`${jfServer}/Playlists/${pl.Id}`, {
+                            method: 'POST',
+                            headers: { ...hdrs, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                Name: 'NathanBuster Rentals',
+                                IsPublic: false,
+                                Users: [{ UserId: jfUserId, CanEdit: true }]
+                            })
+                        });
                     }
                     
                     if (!pl || !pl.Id) throw new Error("Failed to get/create playlist");
