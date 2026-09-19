@@ -4,7 +4,7 @@ import { useLocale } from 'hooks/useLocale';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { getTriggerFriendlyName } from '../utils/edit';
-import type { TaskTriggerInfo } from '@jellyfin/sdk/lib/generated-client';
+import type { TaskTriggerInfo } from '@jellyfin/sdk/lib/generated-client/models/task-trigger-info';
 import globalize from 'lib/globalize';
 
 interface CellProps {

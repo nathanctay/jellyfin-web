@@ -1,9 +1,9 @@
-import type { ItemFilter } from '@jellyfin/sdk/lib/generated-client';
-import type { VideoType } from '@jellyfin/sdk/lib/generated-client';
-import type { SortOrder } from '@jellyfin/sdk/lib/generated-client';
-import type { SeriesStatus } from '@jellyfin/sdk/lib/generated-client';
+import type { ItemFilter } from '@jellyfin/sdk/lib/generated-client/models/item-filter';
+import type { VideoType } from '@jellyfin/sdk/lib/generated-client/models/video-type';
+import type { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
+import type { SeriesStatus } from '@jellyfin/sdk/lib/generated-client/models/series-status';
 import type { ImageType } from '@jellyfin/sdk/lib/generated-client';
-import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
+import { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
 
 export type ParentId = string | null | undefined;
 
@@ -45,6 +45,8 @@ export interface Filters {
     VideoBasicFilter?: VideoBasicFilter[];
     VideoTypes?: VideoType[];
     Years?: number[];
+    AudioLanguages?: string[];
+    SubtitleLanguages?: string[];
 }
 
 export enum ViewMode {
@@ -53,7 +55,7 @@ export enum ViewMode {
 }
 
 export interface LibraryViewSettings {
-    SortBy: ItemSortBy;
+    SortBy: ItemSortBy[];
     SortOrder: SortOrder;
     StartIndex: number;
     CardLayout: boolean;

@@ -1,4 +1,4 @@
-import type { FolderStorageDto } from '@jellyfin/sdk/lib/generated-client';
+import type { FolderStorageDto } from '@jellyfin/sdk/lib/generated-client/models/folder-storage-dto';
 import { describe, expect, it } from 'vitest';
 
 import { calculateUsedPercentage, calculateTotal } from './space';

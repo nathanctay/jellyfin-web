@@ -1,5 +1,4 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
-
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
 const LABEL_TAG_PREFIX = 'carousel:';
 
 export function mergeCarouselItems(

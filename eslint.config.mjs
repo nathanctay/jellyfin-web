@@ -41,7 +41,10 @@ export default tseslint.config(
             'coverage',
             'dist',
             '.idea',
-            '.vscode'
+            '.vscode',
+            // Standalone browser scripts copied verbatim as static assets;
+            // they are not part of the bundler module graph.
+            'src/assets/3d-store'
         ]
     },
 
@@ -59,7 +62,6 @@ export default tseslint.config(
             'new-cap': [
                 'error',
                 {
-                    'capIsNewExceptions': ['jQuery.Deferred'],
                     'newIsCapExceptionPattern': String.raw`\.default$`
                 }
             ],
@@ -258,8 +260,6 @@ export default tseslint.config(
                 'Response.json',
                 // document-register-element
                 'document.registerElement',
-                // resize-observer-polyfill
-                'ResizeObserver',
                 // fast-text-encoding
                 'TextEncoder',
                 // intersection-observer

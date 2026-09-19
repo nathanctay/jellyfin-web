@@ -1,6 +1,5 @@
 import type { ApiClient } from 'jellyfin-apiclient';
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
-
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
 import { readRowCache, writeRowCache } from 'components/homesections/sections/customRowsUtils';
 
 export interface MovieCollection {

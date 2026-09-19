@@ -1,4 +1,4 @@
-import { MediaType } from '@jellyfin/sdk/lib/generated-client';
+import { MediaType } from '@jellyfin/sdk/lib/generated-client/models/media-type';
 
 export const ItemMediaKind = {
     ...MediaType,

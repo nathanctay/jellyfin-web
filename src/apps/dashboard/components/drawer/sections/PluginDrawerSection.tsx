@@ -1,5 +1,5 @@
 import Extension from '@mui/icons-material/Extension';
-import Folder from '@mui/icons-material/Folder';
+import Icon from '@mui/material/Icon';
 import List from '@mui/material/List';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
@@ -36,7 +36,7 @@ const PluginDrawerSection = () => {
                     '/configurationpage',
                     '/dashboard/plugins/repositories'
                 ]}
-                excludePaths={pagesInfo?.map((p: any) => `/${Dashboard.getPluginUrl(p.Name)}`)}
+                excludePaths={pagesInfo?.map(p => `/${Dashboard.getPluginUrl(p.Name)}`)}
             >
                 <ListItemIcon>
                     <Extension />
@@ -44,14 +44,13 @@ const PluginDrawerSection = () => {
                 <ListItemText primary={globalize.translate('TabPlugins')} />
             </ListItemLink>
 
-            {pagesInfo?.map((pageInfo: any) => (
+            {pagesInfo?.map(pageInfo => (
                 <ListItemLink
                     key={pageInfo.PluginId}
                     to={`/${Dashboard.getPluginUrl(pageInfo.Name)}`}
                 >
                     <ListItemIcon>
-                        {/* TODO: Support different icons? */}
-                        <Folder />
+                        <Icon>{pageInfo.MenuIcon ?? 'folder'}</Icon>
                     </ListItemIcon>
                     <ListItemText primary={pageInfo.DisplayName} />
                 </ListItemLink>

@@ -1,5 +1,5 @@
 import React, { FunctionComponent } from 'react';
-import type { LogFile } from '@jellyfin/sdk/lib/generated-client';
+import type { LogFile } from '@jellyfin/sdk/lib/generated-client/models/log-file';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
@@ -27,7 +27,12 @@ const LogItemList: FunctionComponent<LogItemProps> = ({ logs }: LogItemProps) =>
                                 secondary={getDate(log)}
                                 slotProps={{
                                     primary: {
-                                        variant: 'h3'
+                                        variant: 'h3',
+                                        sx: {
+                                            whiteSpace: 'normal',
+                                            overflowWrap: 'anywhere',
+                                            wordBreak: 'break-word'
+                                        }
                                     },
                                     secondary: {
                                         variant: 'body1'

@@ -1,6 +1,6 @@
-import type { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
-import type { ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
-import type { SortOrder } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import type { ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models/item-sort-by';
+import type { SortOrder } from '@jellyfin/sdk/lib/generated-client/models/sort-order';
 
 import { CardOptions } from './cardOptions';
 

@@ -1,19 +1,19 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client';
-import { ItemFields } from '@jellyfin/sdk/lib/generated-client';
-import type { UserDto } from '@jellyfin/sdk/lib/generated-client';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client/models/image-type';
+import { ItemFields } from '@jellyfin/sdk/lib/generated-client/models/item-fields';
+import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
 import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 
-import { getLatestMediaQuery } from 'apps/stable/features/libraries/api/useLatestMedia';
+import { getLatestMediaQuery } from 'apps/legacy/features/libraries/api/useLatestMedia';
 import cardBuilder from 'components/cardbuilder/cardBuilder';
 import { getBackdropShape, getPortraitShape, getSquareShape } from 'components/cardbuilder/utils/shape';
 import layoutManager from 'components/layoutManager';
 import { appRouter } from 'components/router/appRouter';
 import globalize from 'lib/globalize';
-import { toApi } from 'utils/jellyfin-apiclient/compat';
+import ServerConnections from 'lib/jellyfin-apiclient/ServerConnections';
 import { queryClient } from 'utils/query/queryClient';
 
 import type { SectionContainerElement, SectionOptions } from './section';
@@ -26,6 +26,8 @@ function getFetchLatestItemsFn(
     { enableOverflow }: SectionOptions
 ) {
     return function () {
+        const api = ServerConnections.getApi(apiClient.serverId());
+
         let limit = 16;
 
         if (enableOverflow) {
@@ -57,7 +59,7 @@ function getFetchLatestItemsFn(
         };
 
         return queryClient
-            .fetchQuery(getLatestMediaQuery(toApi(apiClient), options));
+            .fetchQuery(getLatestMediaQuery(api, options));
     };
 }
 
@@ -81,6 +83,7 @@ function getLatestItemsHtmlFn(
             items: items,
             shape: shape,
             preferThumb: viewType !== 'movies' && viewType !== 'tvshows' && itemType !== 'Channel' && viewType !== 'music' ? 'auto' : null,
+            preferParentPoster: true,
             showUnplayedIndicator: false,
             showChildCountIndicator: true,
             context: 'home',

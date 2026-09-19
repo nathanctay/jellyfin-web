@@ -1,8 +1,8 @@
-import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client';
+import { BaseItemKind } from '@jellyfin/sdk/lib/generated-client/models/base-item-kind';
 import { describe, expect, it } from 'vitest';
 
 import { getItemTypeIcon, getLibraryIcon } from './image';
-import { CollectionType } from '@jellyfin/sdk/lib/generated-client';
+import { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
 
 const ITEM_ICON_MAP: Record<string, string | undefined> = {
     AggregateFolder: undefined,
