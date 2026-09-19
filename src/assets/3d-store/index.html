@@ -1687,7 +1687,7 @@ const retailAudio = new RetailAudio();
         }
 
         // Builds a shelving unit. Double-sided for center gondolas, single-sided for walls.
-        async function buildGondola(itemsFront, position, rotationY, length = 20, isDoubleSided = false, shelfCount = 3, fallbackItems = null, labelFront = null, itemsBack = null, labelBack = null) {
+                async function buildGondola(itemsFront, position, rotationY, length = 20, isDoubleSided = false, shelfCount = 3, fallbackItems = null, labelFront = null, itemsBack = null, labelBack = null) {
             if (!itemsFront || !itemsFront.length) itemsFront = fallbackItems;
             if (isDoubleSided && (!itemsBack || !itemsBack.length)) itemsBack = fallbackItems;
             if (!itemsFront || !itemsFront.length) return;
@@ -1767,16 +1767,51 @@ const retailAudio = new RetailAudio();
             }
 
             const backMat = new THREE.MeshStandardMaterial({ map: createPegboardTexture(), roughness: 0.8, metalness: 0.1 });
-            const backGeo = new THREE.BoxGeometry(length, shelfCount * 2 + 2, 0.5);
-            const back = new THREE.Mesh(backGeo, backMat);
-            back.position.set(0, shelfCount - 0.5, 0); // Centered height
-            back.userData = { isShelf: true };
-            gondola.add(back);
-            interactableMeshes.push(back);
+            // A-Frame Geometry Calculations
+            const slantAngle = 0.12;
+            const gondolaHeight = shelfCount * 2 + 0.5;
+            const topZOffset = 0.2; // Half-width of the flat top
+            const baseZOffset = Math.sin(slantAngle) * gondolaHeight + topZOffset;
+
+            const backGeo = new THREE.BoxGeometry(length, gondolaHeight, 0.1);
+            const solidMat = new THREE.MeshStandardMaterial({ color: 0x8c8779, roughness: 0.6, metalness: 0.3 });
+
+            if (isDoubleSided) {
+                const shape = new THREE.Shape();
+                shape.moveTo(baseZOffset + 1.4, 0);
+                shape.lineTo(topZOffset + 1.4, gondolaHeight);
+                shape.lineTo(-topZOffset - 1.4, gondolaHeight);
+                shape.lineTo(-baseZOffset - 1.4, 0);
+                shape.lineTo(baseZOffset + 1.4, 0);
+
+                const extrudeSettings = { depth: 0.2, bevelEnabled: false };
+                const endCapGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                const endCapMat = new THREE.MeshStandardMaterial({ color: 0x8c8779, roughness: 0.8 });
+                
+                const endCap1 = new THREE.Mesh(endCapGeo, endCapMat);
+                endCap1.position.set(-length/2 - 0.1, 0, 0);
+                endCap1.rotation.y = -Math.PI / 2;
+                gondola.add(endCap1);
+                
+                const endCap2 = new THREE.Mesh(endCapGeo, endCapMat);
+                endCap2.position.set(length/2 + 0.1, 0, 0);
+                endCap2.rotation.y = Math.PI / 2;
+                gondola.add(endCap2);
+
+                const topCapGeo = new THREE.BoxGeometry(length, 0.1, topZOffset * 2 + 0.1); // slightly wider to overlap pegboard thickness
+                const topCap = new THREE.Mesh(topCapGeo, solidMat);
+                topCap.position.set(0, gondolaHeight - 0.05, 0); // Flush with top
+                gondola.add(topCap);
+
+                
+            }
+
 
             // (Soft bevelled clamshell shape and materials now globally shared)
 
             // Create a classic "BE KIND REWIND" rental sticker to slap on random movies
+            // solidMat moved up
+
             function createStickerTexture() {
                 const canvas = document.createElement('canvas');
                 canvas.width = 128; canvas.height = 128;
@@ -1803,7 +1838,7 @@ const retailAudio = new RetailAudio();
             const stickerGeo = new THREE.PlaneGeometry(0.35, 0.35);
 
             // Classic Blockbuster Shelf Metal
-            const solidMat = new THREE.MeshStandardMaterial({ color: 0x8c8779, roughness: 0.6, metalness: 0.3 });
+
 
             const itemsPerShelf = Math.floor(length / 1.5);
             const sides = isDoubleSided ? [1, -1] : [1]; // 1 = Front side (+Z), -1 = Back side (-Z)
@@ -1813,25 +1848,33 @@ const retailAudio = new RetailAudio();
                 const sideItems = side === 1 ? itemsFront : itemsBack;
                 if (!sideItems || !sideItems.length) continue;
 
-                // We start at 0 instead of a random index! The array is ALREADY shuffled by loadData().
-                // If we pick a random index here, returning from BFCache will pick 30 DIFFERENT movies
-                // out of the 100 cached items, defeating the image cache!
+                const sideGroup = new THREE.Group();
+                sideGroup.position.set(0, 0, side * baseZOffset);
+                if (side === -1) sideGroup.rotation.y = Math.PI;
+                sideGroup.rotation.order = 'YXZ';
+                sideGroup.rotation.x = -slantAngle;
+                gondola.add(sideGroup);
+
+                const back = new THREE.Mesh(backGeo, backMat);
+                back.position.set(0, gondolaHeight / 2, 0);
+                back.userData = { isShelf: true };
+                sideGroup.add(back);
+                interactableMeshes.push(back);
+
                 let itemIndex = 0;
 
                 for (let s = 0; s < shelfCount; s++) {
-                    const shelfHeight = 0.5 + s * 2;
+                    const shelfHeight = 1.25 + s * 2.0;
                     const plankGeo = new THREE.BoxGeometry(length, 0.1, 1.2);
                     const plank = new THREE.Mesh(plankGeo, solidMat);
-                    plank.position.set(0, shelfHeight - 0.75, side * 0.6);
-                    gondola.add(plank);
+                    plank.position.set(0, shelfHeight - 0.75, 0.65);
+                    sideGroup.add(plank);
 
-                    // Blockbuster Blue Plastic Ticket Rail
                     const railGeo = new THREE.BoxGeometry(length, 0.15, 0.05);
                     const railMat = new THREE.MeshStandardMaterial({ color: 0x0000aa, roughness: 0.3, metalness: 0.1 });
                     const rail = new THREE.Mesh(railGeo, railMat);
-                    // 0.6 is the center of the plank (which is 1.2 deep). So +0.6 gets us to the front edge.
-                    rail.position.set(0, shelfHeight - 0.75, side * (0.6 + 0.6 + 0.025));
-                    gondola.add(rail);
+                    rail.position.set(0, shelfHeight - 0.75, 1.25);
+                    sideGroup.add(rail);
 
                     const shelfItems = [];
                     for (let i = 0; i < itemsPerShelf; i++) {
@@ -1853,13 +1896,7 @@ const retailAudio = new RetailAudio();
                             const caseGroup = new THREE.Group();
 
                             const xPos = (i - shelfItems.length / 2) * 1.5 + 0.75;
-                            caseGroup.position.set(xPos, shelfHeight + gondolaYOffset, side * 0.8);
-                            if (side === -1) {
-                                caseGroup.rotation.y = Math.PI;
-                                caseGroup.rotation.x = 0.1;
-                            } else {
-                                caseGroup.rotation.x = -0.1;
-                            }
+                            caseGroup.position.set(xPos, shelfHeight + gondolaYOffset, 0.45); // Rest perfectly against pegboard (0.05) and on plank
 
                             // position.x, position.z, side, shelf index (s), and item index guarantee absolute uniqueness
                             const instanceId = 'gondola_' + position.x + '_' + position.z + '_' + side + '_' + s + '_' + i + '_' + item.Id;
@@ -1938,7 +1975,7 @@ const retailAudio = new RetailAudio();
                                 visualGroup.add(sticker);
                             }
 
-                            gondola.add(caseGroup);
+                            sideGroup.add(caseGroup);
 
                             // Track movie groups for the hitbox instead of pushing individual meshes
                             shelfGroups.push(caseGroup);
