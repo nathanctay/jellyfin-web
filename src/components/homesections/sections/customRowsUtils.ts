@@ -16,7 +16,11 @@ export const SUPPORTED_PLUGIN_SECTIONS = [
     'WatchAgain',
     'Genre',
     'MyJellyseerrRequests',
-    'UpcomingShows'
+    'UpcomingShows',
+    'RecentlyAddedInLibrary',
+    // The plugin reports this one as 'CollectionsSection', unlike every other
+    // type id. Matching its source exactly; shortening it silently drops the row.
+    'CollectionsSection'
 ];
 
 export const ROW_CACHE_TTL_MS = 10 * 60 * 1000;

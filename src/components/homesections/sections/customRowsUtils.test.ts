@@ -45,6 +45,15 @@ describe('filterSupportedSections', () => {
             .toEqual(['LatestMovies', 'UpcomingShows']);
     });
 
+    it('keeps the sections added by the plugin\'s Jellyfin 12 release', () => {
+        const sections = [
+            { Section: 'CollectionsSection' },
+            { Section: 'RecentlyAddedInLibrary' }
+        ];
+        expect(filterSupportedSections(sections).map((s) => s.Section))
+            .toEqual(['CollectionsSection', 'RecentlyAddedInLibrary']);
+    });
+
     it('collapses duplicate genre rows with the same title', () => {
         const sections = [
             { Section: 'Genre', DisplayText: 'Thriller movies' },
