@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jellyfin 3D Store</title>
     <style>
         body {
@@ -2714,11 +2714,21 @@ const retailAudio = new RetailAudio();
             window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
             window.addEventListener('mouseup', onPointerUp);
 
+            // Prevent native browser pinch-to-zoom
+            window.addEventListener('gesturestart', (e) => e.preventDefault());
+            window.addEventListener('gesturechange', (e) => e.preventDefault());
+            window.addEventListener('gestureend', (e) => e.preventDefault());
+
             window.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault(); // Stop native trackpad pinch-to-zoom
+                }
                 if (settingsOpen()) return;
                 // Smooth trackpad zooming and mouse wheel zooming
-                targetFov = Math.max(20, Math.min(80, targetFov + e.deltaY * 0.02));
-            }, { passive: true });
+                // Trackpad pinch uses e.ctrlKey and e.deltaY. Normal scroll uses just e.deltaY.
+                const speed = e.ctrlKey ? 0.1 : 0.02;
+                targetFov = Math.max(20, Math.min(80, targetFov + e.deltaY * speed));
+            }, { passive: false });
 
             window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
             window.addEventListener('touchmove', (e) => onPointerMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
