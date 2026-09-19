@@ -245,17 +245,6 @@ JSON.stringify = function(obj, replacer, space) {
         let wsServer = '';
         let lastActivity = Date.now();
         let screensaverTimer = 0;
-        ['mousemove', 'keydown', 'click', 'touchstart'].forEach(evt => {
-            window.addEventListener(evt, () => {
-                // If waking up from screensaver, immediately snap the camera target to the current position
-                // so it doesn't suddenly sprint to the screensaver's target node
-                if (Date.now() - lastActivity > 15000) {
-                    targetCameraX = currentCameraX;
-                    targetCameraZ = currentCameraZ;
-                }
-                lastActivity = Date.now();
-            });
-        });
 
 // --- Procedural Audio Engine (Adapted from Halcyon Video) ---
 const MASTER_VOLUME = 0.35;
@@ -1011,7 +1000,7 @@ const retailAudio = new RetailAudio();
 
                     try {
                         const imgUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=128&quality=70`;
-                        const imgRes = await fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } });
+                        const imgRes = await fetch(imgUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } });
                         if (!imgRes.ok) return null;
                         const blob = await imgRes.blob();
                         const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
@@ -1204,7 +1193,12 @@ const retailAudio = new RetailAudio();
                     for (let i = 0; i < flat.length; i += 150) chunks.push(flat.slice(i, i + 150));
                     await Promise.all(chunks.map(async (chunk) => {
                         const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?Ids=${chunk.join(',')}&Fields=${fields}&Limit=150`,
-                            { headers: { 'X-Emby-Token': jfToken } });
+                            { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } });
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            console.error("Jellyfin API Error on Chunks:", res.status, errText);
+                            throw new Error(`HTTP ${res.status}: ${errText}`);
+                        }
                         const json = await res.json();
                         extractItems(json).forEach(it => byId.set(it.Id, it));
                     }));
@@ -1214,7 +1208,12 @@ const retailAudio = new RetailAudio();
                     lists = JSON.parse(cachedData);
                 } else {
                     const allMoviesUrl = `${jfServer}/Users/${jfUserId}/Items?Recursive=true&IncludeItemTypes=Movie&Fields=${fields}&Limit=5000&SortBy=SortName`;
-                    const res = await fetch(allMoviesUrl, { headers: { 'X-Emby-Token': jfToken } });
+                    const res = await fetch(allMoviesUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } });
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        console.error("Jellyfin API Error on All Movies:", res.status, errText, allMoviesUrl);
+                        throw new Error(`HTTP ${res.status}: ${errText}`);
+                    }
                     const data = await res.json();
                     const allItems = extractItems(data);
 
@@ -1475,7 +1474,7 @@ const retailAudio = new RetailAudio();
 
                         const imgUrl = `${jfServer}/Items/${movie.Id}/Images/Primary?maxWidth=400&quality=90`;
 
-                        fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                        fetch(imgUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } })
                             .then(res => res.blob())
                             .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
                             .then(bmp => {
@@ -1631,7 +1630,7 @@ const retailAudio = new RetailAudio();
                         scene.add(group);
 
                         const imgUrl = `${jfServer}/Items/${item.Id}/Images/Primary?maxWidth=1024&quality=90`;
-                        fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                        fetch(imgUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } })
                             .then(res => res.blob())
                             .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
                             .then(bmp => {
@@ -2016,6 +2015,16 @@ const retailAudio = new RetailAudio();
             let currentCameraZ = 41;
             let targetFov = 60;
 
+            ['mousemove', 'keydown', 'click', 'touchstart'].forEach(evt => {
+                window.addEventListener(evt, () => {
+                    if (Date.now() - lastActivity > 15000) {
+                        targetCameraX = currentCameraX;
+                        targetCameraZ = currentCameraZ;
+                    }
+                    lastActivity = Date.now();
+                });
+            });
+
             // Camera Rotation (Gyroscopic/Drag)
             let cameraYaw = 0;
             let cameraPitch = -0.3; // Start with a downward tilt to look at the shelves from above
@@ -2063,7 +2072,7 @@ const retailAudio = new RetailAudio();
                 group.add(staticScreen);
                 if (userId && jfServer && jfToken) {
                     const imgUrl = `${jfServer}/Users/${userId}/Images/Primary?quality=90`;
-                    fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } })
+                    fetch(imgUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } })
                         .then(res => {
                             if (!res.ok) throw new Error('No avatar');
                             return res.blob();
@@ -2349,8 +2358,8 @@ const retailAudio = new RetailAudio();
                         const itemUrl = `${jfServer}/Users/${jfUserId}/Items/${jfItemId}`;
                         
                         Promise.all([
-                            fetch(imgUrl, { headers: { 'X-Emby-Token': jfToken } }).then(res => res.blob()).then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' })),
-                            fetch(itemUrl, { headers: { 'X-Emby-Token': jfToken } }).then(res => res.json())
+                            fetch(imgUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } }).then(res => res.blob()).then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' })),
+                            fetch(itemUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } }).then(res => res.json())
                         ]).then(([bmp, fetchedItem]) => {
                             if (!dummyGroup.parent) return; // Aborted!
                             
@@ -2607,8 +2616,7 @@ const retailAudio = new RetailAudio();
             // --- State Machine & Inspection ---
             const STATE = { BROWSE: 0, INSPECT: 1, PLAYING: 2 };
             let currentState = STATE.BROWSE;
-            let retailAudio.playBoxFlip();
-                    inspectedMesh = null;
+            let inspectedMesh = null;
             let originalPosition = new THREE.Vector3();
             let originalRotation = new THREE.Euler();
 
@@ -2850,7 +2858,7 @@ const retailAudio = new RetailAudio();
                             const itemId = currentMesh.userData.item.Id;
                             const highResUrl = `${jfServer}/Items/${itemId}/Images/Primary?maxWidth=1024&quality=90`;
 
-                            fetch(highResUrl, { headers: { 'X-Emby-Token': jfToken } })
+                            fetch(highResUrl, { headers: { 'Authorization': `MediaBrowser Token="${jfToken}"` } })
                                 .then(res => res.blob())
                                 .then(blob => createImageBitmap(blob, { imageOrientation: 'flipY' }))
                                 .then(bmp => {
@@ -2993,6 +3001,7 @@ const retailAudio = new RetailAudio();
                         }));
                     }
 
+                    retailAudio.playBoxFlip();
                     inspectedMesh = null;
                     selectedItem = null;
                     hud.classList.remove('show');
@@ -3045,7 +3054,7 @@ const retailAudio = new RetailAudio();
                 updateBasketUI();
                 
                 try {
-                    const hdrs = { 'X-Emby-Token': jfToken };
+                    const hdrs = { 'Authorization': `MediaBrowser Token="${jfToken}"` };
                     
                     // 1. Get or create playlist
                     const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?IncludeItemTypes=Playlist&Recursive=true`, { headers: hdrs }).then(r => r.json());
@@ -3121,7 +3130,7 @@ const retailAudio = new RetailAudio();
                 }
                 
                 try {
-                    const hdrs = { 'X-Emby-Token': jfToken };
+                    const hdrs = { 'Authorization': `MediaBrowser Token="${jfToken}"` };
                     // 1. Get playlist
                     const res = await fetch(`${jfServer}/Users/${jfUserId}/Items?IncludeItemTypes=Playlist&Recursive=true`, { headers: hdrs }).then(r => r.json());
                     let pl = (res.Items || []).find(i => i.Name === 'NathanBuster Rentals');
